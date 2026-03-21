@@ -21,6 +21,16 @@ The document's core architectural rule is separation:
 
 This repository mirrors that split from day one so the PoC does not collapse into a single service.
 
+## Reference Diagrams
+
+### Protocol-Mediated Architecture
+
+![Protocol-Mediated Architecture](docs/architecture/Protocol%20Mediated%20Architecture.jpg)
+
+### Trust Graph
+
+![Trust Graph - Agentic Domestic Money Movement](docs/architecture/Trust%20Graph%20-%20Agentic%20Domestic%20Money%20Movement.jpg)
+
 ## Repository Layout
 
 ```text
