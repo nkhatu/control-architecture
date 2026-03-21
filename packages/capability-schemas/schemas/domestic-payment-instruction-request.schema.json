@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "domestic-payment-instruction-request.schema.json",
+  "title": "DomesticPaymentInstructionRequest",
+  "type": "object",
+  "required": [
+    "customer_id",
+    "source_account_id",
+    "beneficiary_id",
+    "amount_usd",
+    "rail",
+    "requested_execution_date"
+  ],
+  "properties": {
+    "customer_id": { "type": "string" },
+    "source_account_id": { "type": "string" },
+    "beneficiary_id": { "type": "string" },
+    "amount_usd": { "type": "number", "exclusiveMinimum": 0 },
+    "rail": {
+      "type": "string",
+      "enum": ["ach", "same_day_ach", "internal_transfer", "rtp"]
+    },
+    "memo": { "type": "string" },
+    "requested_execution_date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "additionalProperties": false
+}

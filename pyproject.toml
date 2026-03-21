@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=75.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-money-movement-poc"
+version = "0.1.0"
+description = "Bootstrap services for the agentic domestic money movement proof of concept."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115.0,<1.0.0",
+  "uvicorn[standard]>=0.32.0,<1.0.0",
+  "sqlalchemy>=2.0.36,<3.0.0",
+  "psycopg[binary]>=3.2.3,<4.0.0",
+  "pydantic>=2.10.0,<3.0.0",
+  "pydantic-settings>=2.6.1,<3.0.0",
+  "PyYAML>=6.0.2,<7.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28.1,<1.0.0",
+  "pytest>=8.3.4,<9.0.0",
+]
+
+[tool.setuptools.package-dir]
+"" = "services/memory-service/src"
+
+[tool.setuptools.packages.find]
+where = ["services/memory-service/src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["services/memory-service/tests"]

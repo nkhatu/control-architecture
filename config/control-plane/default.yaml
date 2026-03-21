@@ -1,0 +1,44 @@
+environment:
+  name: poc-local
+  region: us-east-1
+  rail_scope:
+    - ach
+    - same_day_ach
+    - internal_transfer
+  default_mode: dry_run
+
+control_plane:
+  policy_engine: opa
+  dual_approval_threshold_usd: 50000
+  high_risk_escalation_threshold_usd: 100000
+  max_release_retries: 0
+  ambiguous_response_action: pending_reconcile
+  kill_switch_enabled: true
+
+capabilities:
+  release_approved_payment:
+    requires_scope: release:domestic_payment
+    approval_required: true
+    idempotency_key_required: true
+    dry_run_supported: false
+  validate_beneficiary_account:
+    requires_scope: validate:payment
+    approval_required: false
+  request_payment_approval:
+    requires_scope: write:approval_request
+    approval_required: false
+
+memory:
+  task_ttl_minutes: 240
+  external_content_quarantine: true
+  provenance_required: true
+
+observability:
+  trace_sampling: 1.0
+  payment_event_topic: payments.events
+  policy_decision_topic: policy.decisions
+
+security:
+  token_ttl_minutes: 15
+  require_mtls_internal: false
+  pii_redaction_logs: true

@@ -1,0 +1,63 @@
+capabilities:
+  - id: domestic_payment.create_instruction
+    version: v1
+    owner: capability-gateway
+    category: draft
+    side_effect_class: none
+    required_scopes:
+      - write:draft_payment
+    input_schema: packages/capability-schemas/schemas/domestic-payment-instruction-request.schema.json
+    output_schema: packages/capability-schemas/schemas/domestic-payment-task.schema.json
+    timeout_ms: 3000
+    retry_policy: safe-retry
+
+  - id: domestic_payment.validate_beneficiary_account
+    version: v1
+    owner: capability-gateway
+    category: validation
+    side_effect_class: none
+    required_scopes:
+      - validate:payment
+    input_schema: packages/capability-schemas/schemas/domestic-payment-task.schema.json
+    output_schema: packages/capability-schemas/schemas/beneficiary-validation-result.schema.json
+    timeout_ms: 2000
+    retry_policy: safe-retry
+
+  - id: domestic_payment.request_payment_approval
+    version: v1
+    owner: orchestrator-api
+    category: approval
+    side_effect_class: workflow-state-change
+    required_scopes:
+      - write:approval_request
+    input_schema: packages/capability-schemas/schemas/approval-request.schema.json
+    output_schema: packages/capability-schemas/schemas/domestic-payment-task.schema.json
+    timeout_ms: 2000
+    retry_policy: idempotent
+
+  - id: domestic_payment.release_approved_payment
+    version: v1
+    owner: capability-gateway
+    category: execution
+    side_effect_class: irreversible-financial-action
+    requires_human_approval: true
+    idempotency: required
+    required_scopes:
+      - release:domestic_payment
+    input_schema: packages/capability-schemas/schemas/release-approved-payment-request.schema.json
+    output_schema: packages/capability-schemas/schemas/payment-status-response.schema.json
+    timeout_ms: 5000
+    retry_policy: none
+    compensation_action: domestic_payment.raise_manual_recall_request
+
+  - id: domestic_payment.check_payment_status
+    version: v1
+    owner: capability-gateway
+    category: inquiry
+    side_effect_class: none
+    required_scopes:
+      - read:payment_status
+    input_schema: packages/capability-schemas/schemas/domestic-payment-task.schema.json
+    output_schema: packages/capability-schemas/schemas/payment-status-response.schema.json
+    timeout_ms: 1500
+    retry_policy: safe-retry

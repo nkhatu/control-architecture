@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "approval-request.schema.json",
+  "title": "ApprovalRequest",
+  "type": "object",
+  "required": ["task_id", "payment_id", "requested_by", "approval_profile"],
+  "properties": {
+    "task_id": { "type": "string" },
+    "payment_id": { "type": "string" },
+    "requested_by": { "type": "string" },
+    "approval_profile": { "type": "string" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "justification": { "type": "string" }
+  },
+  "additionalProperties": false
+}

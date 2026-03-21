@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "beneficiary-validation-result.schema.json",
+  "title": "BeneficiaryValidationResult",
+  "type": "object",
+  "required": ["beneficiary_id", "status", "validated_at"],
+  "properties": {
+    "beneficiary_id": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["validated", "rejected", "needs_review"]
+    },
+    "reason": { "type": "string" },
+    "validated_at": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}

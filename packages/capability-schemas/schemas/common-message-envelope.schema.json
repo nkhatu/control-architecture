@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "common-message-envelope.schema.json",
+  "title": "CommonMessageEnvelope",
+  "type": "object",
+  "required": [
+    "message_id",
+    "correlation_id",
+    "task_id",
+    "workflow_id",
+    "message_type",
+    "timestamp",
+    "source",
+    "target",
+    "trust",
+    "payload",
+    "trace"
+  ],
+  "properties": {
+    "message_id": { "type": "string" },
+    "correlation_id": { "type": "string" },
+    "task_id": { "type": "string" },
+    "workflow_id": { "type": "string" },
+    "message_type": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "object",
+      "required": ["principal_type", "principal_id"],
+      "properties": {
+        "principal_type": { "type": "string" },
+        "principal_id": { "type": "string" },
+        "tenant_id": { "type": "string" },
+        "session_id": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "delegation": {
+      "type": "object",
+      "properties": {
+        "delegated_by": { "type": "string" },
+        "delegation_chain": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "scope": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "expires_at": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "required": ["target_type", "target_id", "version"],
+      "properties": {
+        "target_type": { "type": "string" },
+        "target_id": { "type": "string" },
+        "version": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "trust": {
+      "type": "object",
+      "required": ["classification", "human_approval_required"],
+      "properties": {
+        "classification": { "type": "string" },
+        "human_approval_required": { "type": "boolean" },
+        "policy_context_id": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "payload": {
+      "type": "object"
+    },
+    "trace": {
+      "type": "object",
+      "required": ["trace_id", "span_id"],
+      "properties": {
+        "trace_id": { "type": "string" },
+        "span_id": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

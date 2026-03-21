@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "domestic-payment-task.schema.json",
+  "title": "DomesticPaymentTask",
+  "type": "object",
+  "required": [
+    "task_id",
+    "payment_id",
+    "customer_id",
+    "rail",
+    "amount_usd",
+    "status",
+    "beneficiary_status",
+    "approval_status",
+    "provenance"
+  ],
+  "properties": {
+    "task_id": { "type": "string" },
+    "payment_id": { "type": "string" },
+    "customer_id": { "type": "string" },
+    "rail": {
+      "type": "string",
+      "enum": ["ach", "same_day_ach", "internal_transfer", "rtp"]
+    },
+    "amount_usd": { "type": "number", "exclusiveMinimum": 0 },
+    "status": {
+      "type": "string",
+      "enum": [
+        "received",
+        "validated",
+        "awaiting_approval",
+        "approved",
+        "released",
+        "settlement_pending",
+        "settled",
+        "failed",
+        "cancelled",
+        "pending_reconcile",
+        "exception"
+      ]
+    },
+    "beneficiary_status": {
+      "type": "string",
+      "enum": ["unknown", "approved", "rejected", "needs_review"]
+    },
+    "approval_status": {
+      "type": "string",
+      "enum": ["not_required", "pending", "approved", "denied", "expired"]
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["initiated_by", "last_updated_by"],
+      "properties": {
+        "initiated_by": { "type": "string" },
+        "last_updated_by": { "type": "string" },
+        "policy_context_id": { "type": "string" },
+        "trace_id": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

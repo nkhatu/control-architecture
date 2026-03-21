@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "release-approved-payment-request.schema.json",
+  "title": "ReleaseApprovedPaymentRequest",
+  "type": "object",
+  "required": ["payment_id", "task_id", "idempotency_key", "released_by"],
+  "properties": {
+    "payment_id": { "type": "string" },
+    "task_id": { "type": "string" },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 8
+    },
+    "released_by": { "type": "string" },
+    "release_mode": {
+      "type": "string",
+      "enum": ["dry_run", "execute"]
+    }
+  },
+  "additionalProperties": false
+}

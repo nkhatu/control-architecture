@@ -1,0 +1,51 @@
+agents:
+  - agent_id: agent.payment_orchestrator
+    name: Payment Orchestrator
+    purpose: Own the domestic payment workflow and invoke only allowed capabilities.
+    supported_tasks:
+      - payment.domestic_release
+    accepts_scopes:
+      - payment.validate
+      - payment.submit_for_approval
+      - payment.release
+    trust_tier: tier-4-controlled
+    supported_transports:
+      - https
+      - nats
+    callback_mode: async
+    max_task_ttl_seconds: 14400
+    requires_provenance: true
+    execution_authority: policy-gated
+
+  - agent_id: agent.compliance_screening
+    name: Compliance Screening Agent
+    purpose: Validate beneficiary and payment inputs without execution authority.
+    supported_tasks:
+      - beneficiary.screening
+      - payment.compliance_check
+    accepts_scopes:
+      - payment.validate
+    trust_tier: tier-2-controlled
+    supported_transports:
+      - https
+      - nats
+    callback_mode: async
+    max_task_ttl_seconds: 900
+    requires_provenance: true
+    execution_authority: none
+
+  - agent_id: agent.approval_router
+    name: Approval Router
+    purpose: Route approval requests and emit approval events back into the workflow.
+    supported_tasks:
+      - payment.approval_routing
+    accepts_scopes:
+      - payment.submit_for_approval
+    trust_tier: tier-3-controlled
+    supported_transports:
+      - https
+      - nats
+    callback_mode: async
+    max_task_ttl_seconds: 3600
+    requires_provenance: true
+    execution_authority: approval-only
