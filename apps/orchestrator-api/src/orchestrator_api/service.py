@@ -54,7 +54,11 @@ class OrchestrationService:
     def list_selected_agents(self) -> list[str]:
         return [
             agent_id
-            for agent_id in ("agent.payment_orchestrator", "agent.compliance_screening")
+            for agent_id in (
+                "agent.payment_orchestrator",
+                "agent.compliance_screening",
+                "agent.approval_router",
+            )
             if self.snapshot.get_agent(agent_id) is not None
         ]
 

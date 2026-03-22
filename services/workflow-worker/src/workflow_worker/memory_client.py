@@ -24,6 +24,12 @@ class MemoryServiceClient(Protocol):
     def create_artifact(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         ...
 
+    def create_delegation(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        ...
+
+    def update_delegation(self, delegation_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        ...
+
     def close(self) -> None:
         ...
 
@@ -56,6 +62,22 @@ class MemoryServiceHttpClient:
             f"/tasks/{task_id}/artifacts",
             json=payload,
             failure_message=f"Failed to create artifact for task {task_id} in memory-service.",
+        )
+
+    def create_delegation(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request(
+            "post",
+            f"/tasks/{task_id}/delegations",
+            json=payload,
+            failure_message=f"Failed to create delegation for task {task_id} in memory-service.",
+        )
+
+    def update_delegation(self, delegation_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request(
+            "patch",
+            f"/delegations/{delegation_id}",
+            json=payload,
+            failure_message=f"Failed to update delegation {delegation_id} in memory-service.",
         )
 
     def close(self) -> None:

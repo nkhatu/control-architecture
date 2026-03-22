@@ -1,3 +1,4 @@
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -34,6 +35,16 @@ class InProcessMemoryServiceClient:
         response.raise_for_status()
         return response.json()
 
+    def create_delegation(self, task_id: str, payload: dict) -> dict:
+        response = self._client.post(f"/tasks/{task_id}/delegations", json=payload)
+        response.raise_for_status()
+        return response.json()
+
+    def update_delegation(self, delegation_id: str, payload: dict) -> dict:
+        response = self._client.patch(f"/delegations/{delegation_id}", json=payload)
+        response.raise_for_status()
+        return response.json()
+
     def close(self) -> None:
         return None
 
@@ -61,7 +72,8 @@ class InProcessCapabilityGatewayClient:
         return None
 
 
-def build_test_client(tmp_path: Path) -> TestClient:
+@contextmanager
+def build_test_client(tmp_path: Path):
     database_path = tmp_path / "workflow-memory-service.db"
     memory_settings = MemorySettings(
         auto_create_schema=True,
@@ -69,25 +81,26 @@ def build_test_client(tmp_path: Path) -> TestClient:
         control_plane_config_path="config/control-plane/default.yaml",
     )
     memory_app = create_memory_app(memory_settings)
-    memory_client = TestClient(memory_app)
 
     gateway_settings = CapabilityGatewaySettings(
         control_plane_config_path="config/control-plane/default.yaml",
         capability_registry_path="config/registry/capabilities.yaml",
     )
     gateway_app = create_capability_gateway_app(gateway_settings)
-    gateway_client = TestClient(gateway_app)
 
     worker_settings = WorkflowWorkerSettings(
         control_plane_config_path="config/control-plane/default.yaml",
     )
-    worker_app = create_workflow_worker_app(
-        worker_settings,
-        memory_service_client=InProcessMemoryServiceClient(memory_client),
-        capability_gateway_client=InProcessCapabilityGatewayClient(gateway_client),
-    )
-
-    return TestClient(worker_app)
+    with ExitStack() as stack:
+        memory_client = stack.enter_context(TestClient(memory_app))
+        gateway_client = stack.enter_context(TestClient(gateway_app))
+        worker_app = create_workflow_worker_app(
+            worker_settings,
+            memory_service_client=InProcessMemoryServiceClient(memory_client),
+            capability_gateway_client=InProcessCapabilityGatewayClient(gateway_client),
+        )
+        worker_client = stack.enter_context(TestClient(worker_app))
+        yield worker_client
 
 
 def start_payload(beneficiary_id: str = "ben_001") -> dict:
@@ -111,7 +124,11 @@ def start_payload(beneficiary_id: str = "ben_001") -> dict:
             "recommended_next_capability": "domestic_payment.validate_beneficiary_account",
             "requires_manual_escalation": False,
         },
-        "selected_agents": ["agent.payment_orchestrator"],
+        "selected_agents": [
+            "agent.payment_orchestrator",
+            "agent.compliance_screening",
+            "agent.approval_router",
+        ],
         "available_capabilities": [
             "domestic_payment.create_instruction",
             "domestic_payment.validate_beneficiary_account",
@@ -129,7 +146,11 @@ def test_start_workflow_moves_task_to_awaiting_approval(tmp_path: Path) -> None:
     assert body["task"]["status"] == "awaiting_approval"
     assert body["task"]["beneficiary_status"] == "approved"
     assert body["workflow"]["workflow_state"] == "waiting_for_approval"
-    assert body["artifacts_created"] == ["beneficiary_validation_result"]
+    assert body["artifacts_created"] == ["beneficiary_validation_result", "approval_request"]
+    assert len(body["task"]["delegations"]) == 2
+    assert body["task"]["delegations"][0]["delegated_agent_id"] == "agent.compliance_screening"
+    assert body["task"]["delegations"][1]["delegated_agent_id"] == "agent.approval_router"
+    assert body["task"]["delegations"][1]["status"] == "pending"
 
 
 def test_resume_workflow_reaches_settlement_pending(tmp_path: Path) -> None:
@@ -152,7 +173,8 @@ def test_resume_workflow_reaches_settlement_pending(tmp_path: Path) -> None:
     assert body["task"]["approval_status"] == "approved"
     assert body["workflow"]["workflow_state"] == "release_submitted"
     assert body["release_result"]["mock_rail_outcome"] == "success"
-    assert body["artifacts_created"] == ["payment_release_result"]
+    assert body["artifacts_created"] == ["approval_decision", "payment_release_result"]
+    assert any(item["delegated_action"] == "approval_routing" and item["status"] == "completed" for item in body["task"]["delegations"])
 
 
 def test_resume_workflow_surfaces_ambiguous_release(tmp_path: Path) -> None:

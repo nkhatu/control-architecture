@@ -23,6 +23,7 @@ TaskStatus = Literal[
 BeneficiaryStatus = Literal["unknown", "approved", "rejected", "needs_review"]
 ApprovalStatus = Literal["not_required", "pending", "approved", "denied", "expired"]
 ArtifactTrustLevel = Literal["trusted", "quarantined", "untrusted"]
+DelegationStatus = Literal["queued", "pending", "completed", "failed", "cancelled"]
 
 
 class ProvenanceRecord(BaseModel):
@@ -63,6 +64,23 @@ class ArtifactCreateRequest(BaseModel):
     created_by: str
 
 
+class DelegatedWorkCreateRequest(BaseModel):
+    workflow_id: str
+    parent_agent_id: str
+    delegated_agent_id: str
+    delegated_action: str
+    capability_id: str | None = None
+    status: DelegationStatus = "queued"
+    request_envelope: dict[str, Any] = Field(default_factory=dict)
+    response_envelope: dict[str, Any] | None = None
+
+
+class DelegatedWorkUpdateRequest(BaseModel):
+    status: DelegationStatus
+    updated_by: str
+    response_envelope: dict[str, Any] | None = None
+
+
 class TaskStateHistoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -86,6 +104,22 @@ class ArtifactResponse(BaseModel):
     created_at: datetime
 
 
+class DelegatedWorkResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    delegation_id: str
+    workflow_id: str
+    parent_agent_id: str
+    delegated_agent_id: str
+    delegated_action: str
+    capability_id: str | None = None
+    status: str
+    request_envelope: dict[str, Any]
+    response_envelope: dict[str, Any] | None = None
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
 class TaskResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -106,3 +140,4 @@ class TaskResponse(BaseModel):
 class TaskDetailResponse(TaskResponse):
     state_history: list[TaskStateHistoryResponse] = Field(default_factory=list)
     artifacts: list[ArtifactResponse] = Field(default_factory=list)
+    delegations: list[DelegatedWorkResponse] = Field(default_factory=list)

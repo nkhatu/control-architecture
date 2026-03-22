@@ -1,3 +1,4 @@
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -33,6 +34,16 @@ class InProcessMemoryServiceClient:
 
     def create_artifact(self, task_id: str, payload: dict) -> dict:
         response = self._client.post(f"/tasks/{task_id}/artifacts", json=payload)
+        response.raise_for_status()
+        return response.json()
+
+    def create_delegation(self, task_id: str, payload: dict) -> dict:
+        response = self._client.post(f"/tasks/{task_id}/delegations", json=payload)
+        response.raise_for_status()
+        return response.json()
+
+    def update_delegation(self, delegation_id: str, payload: dict) -> dict:
+        response = self._client.patch(f"/delegations/{delegation_id}", json=payload)
         response.raise_for_status()
         return response.json()
 
@@ -81,7 +92,8 @@ class InProcessWorkflowWorkerClient:
         return None
 
 
-def build_test_client(tmp_path: Path) -> TestClient:
+@contextmanager
+def build_test_client(tmp_path: Path):
     database_path = tmp_path / "memory-service.db"
     memory_settings = MemorySettings(
         auto_create_schema=True,
@@ -89,37 +101,38 @@ def build_test_client(tmp_path: Path) -> TestClient:
         control_plane_config_path="config/control-plane/default.yaml",
     )
     memory_app = create_memory_app(memory_settings)
-    memory_client = TestClient(memory_app)
 
     gateway_settings = CapabilityGatewaySettings(
         control_plane_config_path="config/control-plane/default.yaml",
         capability_registry_path="config/registry/capabilities.yaml",
     )
     gateway_app = create_capability_gateway_app(gateway_settings)
-    gateway_client = TestClient(gateway_app)
 
     worker_settings = WorkflowWorkerSettings(
         control_plane_config_path="config/control-plane/default.yaml",
     )
-    workflow_worker_app = create_workflow_worker_app(
-        worker_settings,
-        memory_service_client=InProcessMemoryServiceClient(memory_client),
-        capability_gateway_client=InProcessCapabilityGatewayClient(gateway_client),
-    )
-    workflow_worker_client = TestClient(workflow_worker_app)
 
     orchestrator_settings = OrchestratorSettings(
         control_plane_config_path="config/control-plane/default.yaml",
         capability_registry_path="config/registry/capabilities.yaml",
         agent_registry_path="config/registry/agents.yaml",
     )
-    orchestrator_app = create_orchestrator_app(
-        orchestrator_settings,
-        memory_service_client=InProcessMemoryServiceClient(memory_client),
-        workflow_worker_client=InProcessWorkflowWorkerClient(workflow_worker_client),
-    )
-
-    return TestClient(orchestrator_app)
+    with ExitStack() as stack:
+        memory_client = stack.enter_context(TestClient(memory_app))
+        gateway_client = stack.enter_context(TestClient(gateway_app))
+        workflow_worker_app = create_workflow_worker_app(
+            worker_settings,
+            memory_service_client=InProcessMemoryServiceClient(memory_client),
+            capability_gateway_client=InProcessCapabilityGatewayClient(gateway_client),
+        )
+        workflow_worker_client = stack.enter_context(TestClient(workflow_worker_app))
+        orchestrator_app = create_orchestrator_app(
+            orchestrator_settings,
+            memory_service_client=InProcessMemoryServiceClient(memory_client),
+            workflow_worker_client=InProcessWorkflowWorkerClient(workflow_worker_client),
+        )
+        orchestrator_client = stack.enter_context(TestClient(orchestrator_app))
+        yield orchestrator_client
 
 
 def test_health_reports_dry_run_mode(tmp_path: Path) -> None:
@@ -154,7 +167,9 @@ def test_intake_creates_task_through_memory_service(tmp_path: Path) -> None:
     assert body["task"]["task_metadata"]["beneficiary_id"] == "ben_001"
     assert "domestic_payment.validate_beneficiary_account" in body["available_capabilities"]
     assert "agent.payment_orchestrator" in body["selected_agents"]
+    assert "agent.approval_router" in body["selected_agents"]
     assert body["workflow"]["workflow_state"] == "waiting_for_approval"
+    assert any(item["delegated_action"] == "approval_routing" for item in body["task"]["delegations"])
 
 
 def test_intake_rejects_unsupported_rail(tmp_path: Path) -> None:
@@ -198,6 +213,7 @@ def test_get_task_proxies_to_memory_service(tmp_path: Path) -> None:
     assert get_response.json()["task_id"] == task_id
     assert get_response.json()["task_metadata"]["policy_decision"]["decision"] == "escalate"
     assert get_response.json()["status"] == "awaiting_approval"
+    assert len(get_response.json()["delegations"]) == 2
 
 
 def test_resume_endpoint_releases_payment_after_approval(tmp_path: Path) -> None:
@@ -230,3 +246,4 @@ def test_resume_endpoint_releases_payment_after_approval(tmp_path: Path) -> None
     assert resume_response.json()["task"]["approval_status"] == "approved"
     assert resume_response.json()["workflow"]["workflow_state"] == "release_submitted"
     assert resume_response.json()["release_result"]["mock_rail_outcome"] == "success"
+    assert any(item["delegated_action"] == "approval_routing" and item["status"] == "completed" for item in resume_response.json()["task"]["delegations"])

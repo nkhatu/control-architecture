@@ -5,8 +5,14 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from .models import Artifact, Task, TaskStateHistory
-from .schemas import ArtifactCreateRequest, TaskCreateRequest, TaskStatePatchRequest
+from .models import Artifact, DelegatedWorkItem, Task, TaskStateHistory
+from .schemas import (
+    ArtifactCreateRequest,
+    DelegatedWorkCreateRequest,
+    DelegatedWorkUpdateRequest,
+    TaskCreateRequest,
+    TaskStatePatchRequest,
+)
 
 
 class NoStateChangeError(ValueError):
@@ -53,6 +59,7 @@ class TaskRepository:
             .options(
                 selectinload(Task.state_history),
                 selectinload(Task.artifacts),
+                selectinload(Task.delegations),
             )
             .where(Task.task_id == task_id)
         )
@@ -124,3 +131,57 @@ class TaskRepository:
         self.session.refresh(artifact)
 
         return artifact
+
+    def create_delegation(self, task_id: str, payload: DelegatedWorkCreateRequest) -> DelegatedWorkItem | None:
+        task = self.get_task(task_id)
+        if task is None:
+            return None
+
+        delegation = DelegatedWorkItem(
+            delegation_id=f"dlg_{uuid4().hex[:12]}",
+            task_id=task.task_id,
+            workflow_id=payload.workflow_id,
+            parent_agent_id=payload.parent_agent_id,
+            delegated_agent_id=payload.delegated_agent_id,
+            delegated_action=payload.delegated_action,
+            capability_id=payload.capability_id,
+            status=payload.status,
+            request_envelope=payload.request_envelope,
+            response_envelope=payload.response_envelope,
+        )
+
+        provenance = dict(task.provenance or {})
+        provenance["last_updated_by"] = payload.parent_agent_id
+        task.provenance = provenance
+
+        self.session.add(delegation)
+        self.session.add(task)
+        self.session.commit()
+        self.session.refresh(delegation)
+
+        return delegation
+
+    def get_delegation(self, delegation_id: str) -> DelegatedWorkItem | None:
+        statement = select(DelegatedWorkItem).where(DelegatedWorkItem.delegation_id == delegation_id)
+        return self.session.scalars(statement).one_or_none()
+
+    def update_delegation(self, delegation_id: str, payload: DelegatedWorkUpdateRequest) -> DelegatedWorkItem | None:
+        delegation = self.get_delegation(delegation_id)
+        if delegation is None:
+            return None
+
+        delegation.status = payload.status
+        if payload.response_envelope is not None:
+            delegation.response_envelope = payload.response_envelope
+
+        task = self.get_task(delegation.task_id)
+        if task is not None:
+            provenance = dict(task.provenance or {})
+            provenance["last_updated_by"] = payload.updated_by
+            task.provenance = provenance
+            self.session.add(task)
+
+        self.session.add(delegation)
+        self.session.commit()
+
+        return self.get_delegation(delegation_id)

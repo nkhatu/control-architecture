@@ -43,6 +43,11 @@ class Task(Base):
         cascade="all, delete-orphan",
         order_by="Artifact.created_at",
     )
+    delegations: Mapped[list["DelegatedWorkItem"]] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="DelegatedWorkItem.created_at",
+    )
 
 
 class TaskStateHistory(Base):
@@ -78,3 +83,29 @@ class Artifact(Base):
     )
 
     task: Mapped[Task] = relationship(back_populates="artifacts")
+
+
+class DelegatedWorkItem(Base):
+    __tablename__ = "delegated_work_items"
+
+    delegation_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    task_id: Mapped[str] = mapped_column(ForeignKey("tasks.task_id"), index=True)
+    workflow_id: Mapped[str] = mapped_column(String(64), index=True)
+    parent_agent_id: Mapped[str] = mapped_column(String(128))
+    delegated_agent_id: Mapped[str] = mapped_column(String(128), index=True)
+    delegated_action: Mapped[str] = mapped_column(String(128), index=True)
+    capability_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    request_envelope: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    response_envelope: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    task: Mapped[Task] = relationship(back_populates="delegations")

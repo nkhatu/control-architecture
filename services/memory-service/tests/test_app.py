@@ -71,12 +71,47 @@ def test_create_update_and_fetch_task(tmp_path: Path) -> None:
 
         assert artifact_response.status_code == 201
 
+        delegation_response = client.post(
+            f"/tasks/{task_id}/delegations",
+            json={
+                "workflow_id": f"wf_{task_id}",
+                "parent_agent_id": "agent.payment_orchestrator",
+                "delegated_agent_id": "agent.compliance_screening",
+                "delegated_action": "beneficiary_validation",
+                "capability_id": "domestic_payment.validate_beneficiary_account",
+                "status": "queued",
+                "request_envelope": {
+                    "message_type": "delegation.request.validate_beneficiary",
+                    "task_id": task_id,
+                },
+            },
+        )
+
+        assert delegation_response.status_code == 201
+        delegation_id = delegation_response.json()["delegation_id"]
+
+        delegation_patch_response = client.patch(
+            f"/delegations/{delegation_id}",
+            json={
+                "status": "completed",
+                "updated_by": "agent.compliance_screening",
+                "response_envelope": {
+                    "message_type": "delegation.result.validate_beneficiary",
+                    "payload": {"status": "validated"},
+                },
+            },
+        )
+
+        assert delegation_patch_response.status_code == 200
+
         get_response = client.get(f"/tasks/{task_id}")
 
         assert get_response.status_code == 200
         fetched_task = get_response.json()
         assert len(fetched_task["state_history"]) == 2
         assert len(fetched_task["artifacts"]) == 1
+        assert len(fetched_task["delegations"]) == 1
+        assert fetched_task["delegations"][0]["status"] == "completed"
 
 
 def test_rejects_no_op_state_patch(tmp_path: Path) -> None:

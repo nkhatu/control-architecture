@@ -32,6 +32,7 @@ Current PoC slice:
 - loads control-plane, capability, and agent registry YAML
 - applies a deterministic intake decision for domestic payment requests
 - starts and resumes the domestic payment workflow through `workflow-worker`
+- passes delegated-agent context into the workflow for compliance screening and approval routing
 - persists and reads durable task state through `memory-service`
 - exposes `GET /tasks/{task_id}` and `POST /tasks/{task_id}/resume`
 - exposes an MCP server adapter with tools, resources, and a review prompt

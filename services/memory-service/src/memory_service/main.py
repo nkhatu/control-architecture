@@ -12,6 +12,9 @@ from .repository import NoStateChangeError, TaskRepository
 from .schemas import (
     ArtifactCreateRequest,
     ArtifactResponse,
+    DelegatedWorkCreateRequest,
+    DelegatedWorkResponse,
+    DelegatedWorkUpdateRequest,
     TaskCreateRequest,
     TaskDetailResponse,
     TaskStatePatchRequest,
@@ -132,6 +135,54 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
             )
 
         return ArtifactResponse.model_validate(artifact)
+
+    @app.post(
+        "/tasks/{task_id}/delegations",
+        response_model=DelegatedWorkResponse,
+        status_code=status.HTTP_201_CREATED,
+    )
+    def create_delegation(
+        task_id: str,
+        payload: DelegatedWorkCreateRequest,
+        repository: TaskRepository = Depends(get_repository),
+    ) -> DelegatedWorkResponse:
+        delegation = repository.create_delegation(task_id, payload)
+        if delegation is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Task {task_id} was not found.",
+            )
+
+        return DelegatedWorkResponse.model_validate(delegation)
+
+    @app.get("/delegations/{delegation_id}", response_model=DelegatedWorkResponse)
+    def get_delegation(
+        delegation_id: str,
+        repository: TaskRepository = Depends(get_repository),
+    ) -> DelegatedWorkResponse:
+        delegation = repository.get_delegation(delegation_id)
+        if delegation is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Delegation {delegation_id} was not found.",
+            )
+
+        return DelegatedWorkResponse.model_validate(delegation)
+
+    @app.patch("/delegations/{delegation_id}", response_model=DelegatedWorkResponse)
+    def patch_delegation(
+        delegation_id: str,
+        payload: DelegatedWorkUpdateRequest,
+        repository: TaskRepository = Depends(get_repository),
+    ) -> DelegatedWorkResponse:
+        delegation = repository.update_delegation(delegation_id, payload)
+        if delegation is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Delegation {delegation_id} was not found.",
+            )
+
+        return DelegatedWorkResponse.model_validate(delegation)
 
     return app
 

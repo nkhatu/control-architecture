@@ -23,6 +23,8 @@ Recommended first API surface:
 - `GET /tasks/{task_id}`
 - `PATCH /tasks/{task_id}/state`
 - `POST /tasks/{task_id}/artifacts`
+- `POST /tasks/{task_id}/delegations`
+- `PATCH /delegations/{delegation_id}`
 
 ## Bootstrap Status
 
@@ -31,6 +33,7 @@ This service now has a runnable FastAPI skeleton under [main.py](/Users/enkay/Do
 - `tasks`
 - `task_state_history`
 - `artifacts`
+- `delegated_work_items`
 
 ## Local Run
 

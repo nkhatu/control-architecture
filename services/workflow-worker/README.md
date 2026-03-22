@@ -31,8 +31,9 @@ Current PoC slice:
 
 - starts the domestic payment workflow after orchestrator intake
 - creates the payment instruction through `capability-gateway`
-- persists workflow-owned state transitions in `memory-service`
-- performs beneficiary validation and waits in `awaiting_approval`
+- persists workflow-owned state transitions and delegated work records in `memory-service`
+- delegates beneficiary validation to `agent.compliance_screening` with a bounded request envelope
+- delegates approval routing to `agent.approval_router` and leaves a pending approval delegation until resume
 - resumes after approval and drives release to `settlement_pending`, `pending_reconcile`, or `failed`
 
 ## Local Run
