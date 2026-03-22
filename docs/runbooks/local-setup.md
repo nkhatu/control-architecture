@@ -20,6 +20,49 @@
    - Temporal `7233`
    - Temporal UI `8080`
 
+## Built Components
+
+The current PoC already includes these runnable components:
+
+- `control-plane`
+  - read-only control-plane and registry publishing boundary
+  - publishes the control-plane document, capability registry, agent registry, and snapshot/version metadata
+- `policy-engine`
+  - deterministic intake and release decision boundary
+  - reads control settings from `control-plane`, with local file fallback
+- `capability-gateway`
+  - typed wrappers around the mock domestic rail
+  - supports instruction creation, beneficiary validation, release, status lookup, and idempotency replay
+  - reads control settings and registry data from `control-plane`, with local file fallback
+- `context-memory-service`
+  - current task snapshot boundary
+  - owns operational task state and the transactional outbox
+- `provenance-service`
+  - append-only provenance, artifacts, state transitions, and delegated work records
+- `event-consumer`
+  - projects outbox events from `context-memory-service` into `provenance-service`
+  - provides idempotent event-driven consistency for task creation and state changes
+- `workflow-worker`
+  - drives the payment workflow from intake through validation, approval wait state, release, and ambiguous-result handling
+  - reads control settings from `control-plane`, with local file fallback
+- `orchestrator-api`
+  - intake and coordination boundary for domestic payment tasks
+  - reads registry and control data from `control-plane`, with local file fallback
+  - calls `policy-engine` for decisions and `workflow-worker` for execution
+  - exposes both REST endpoints and an MCP adapter
+
+Shared PoC building blocks already in place:
+
+- split operational state between `context-memory-service` and `provenance-service`
+- typed shared contracts in `packages/shared-contracts`
+- language-neutral schemas in `packages/capability-schemas`
+- delegated-agent runtime for:
+  - `agent.payment_orchestrator`
+  - `agent.compliance_screening`
+  - `agent.approval_router`
+- outbox-driven projection from context into provenance
+- manual end-to-end runbook in [end-to-end-test.md](/Users/enkay/Documents/Scripts/Control%20Architecture/docs/runbooks/end-to-end-test.md)
+
 ## Python Bootstrap
 
 1. Install `uv` if it is not already available.
@@ -57,7 +100,6 @@ For a manual stack walkthrough, see [end-to-end-test.md](/Users/enkay/Documents/
 
 ## What Still Needs To Be Set Up
 
-- Backend runtime bootstrap for `control-plane`, `orchestrator-api`, `capability-gateway`, `context-memory-service`, `provenance-service`, `workflow-worker`, and `event-consumer`.
 - Database schema for task state, approvals, provenance, and audit projections.
 - Temporal namespace and workflow registration.
 - OPA data loading so policy can read the control-plane thresholds.
