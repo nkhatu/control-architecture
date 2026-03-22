@@ -1,0 +1,125 @@
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from memory_service.config import AppSettings as MemorySettings
+from memory_service.main import create_app as create_memory_app
+from orchestrator_api.config import AppSettings as OrchestratorSettings
+from orchestrator_api.main import create_app as create_orchestrator_app
+
+
+class InProcessMemoryServiceClient:
+    def __init__(self, client: TestClient):
+        self._client = client
+
+    def create_task(self, payload: dict) -> dict:
+        response = self._client.post("/tasks", json=payload)
+        response.raise_for_status()
+        return response.json()
+
+    def get_task(self, task_id: str) -> dict:
+        response = self._client.get(f"/tasks/{task_id}")
+        response.raise_for_status()
+        return response.json()
+
+    def close(self) -> None:
+        return None
+
+
+def build_test_client(tmp_path: Path) -> TestClient:
+    database_path = tmp_path / "memory-service.db"
+    memory_settings = MemorySettings(
+        auto_create_schema=True,
+        database_url=f"sqlite+pysqlite:///{database_path}",
+        control_plane_config_path="config/control-plane/default.yaml",
+    )
+    memory_app = create_memory_app(memory_settings)
+    memory_client = TestClient(memory_app)
+
+    orchestrator_settings = OrchestratorSettings(
+        control_plane_config_path="config/control-plane/default.yaml",
+        capability_registry_path="config/registry/capabilities.yaml",
+        agent_registry_path="config/registry/agents.yaml",
+    )
+    orchestrator_app = create_orchestrator_app(
+        orchestrator_settings,
+        memory_service_client=InProcessMemoryServiceClient(memory_client),
+    )
+
+    return TestClient(orchestrator_app)
+
+
+def test_health_reports_dry_run_mode(tmp_path: Path) -> None:
+    with build_test_client(tmp_path) as client:
+        response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["mode"] == "dry_run"
+
+
+def test_intake_creates_task_through_memory_service(tmp_path: Path) -> None:
+    with build_test_client(tmp_path) as client:
+        response = client.post(
+            "/tasks/domestic-payments",
+            json={
+                "customer_id": "cust_123",
+                "source_account_id": "acct_001",
+                "beneficiary_id": "ben_001",
+                "amount_usd": 2500,
+                "rail": "ach",
+                "requested_execution_date": "2026-03-23",
+                "initiated_by": "user.neil",
+                "trace_id": "tr_orch_001",
+            },
+        )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["policy_decision"]["decision"] == "allow"
+    assert body["policy_decision"]["approval_profile"] == "single_approval"
+    assert body["task"]["status"] == "received"
+    assert body["task"]["task_metadata"]["beneficiary_id"] == "ben_001"
+    assert "domestic_payment.validate_beneficiary_account" in body["available_capabilities"]
+    assert "agent.payment_orchestrator" in body["selected_agents"]
+
+
+def test_intake_rejects_unsupported_rail(tmp_path: Path) -> None:
+    with build_test_client(tmp_path) as client:
+        response = client.post(
+            "/tasks/domestic-payments",
+            json={
+                "customer_id": "cust_123",
+                "source_account_id": "acct_001",
+                "beneficiary_id": "ben_001",
+                "amount_usd": 2500,
+                "rail": "rtp",
+                "requested_execution_date": "2026-03-23",
+                "initiated_by": "user.neil",
+            },
+        )
+
+    assert response.status_code == 403
+    assert "outside the configured PoC rail scope" in response.json()["detail"]
+
+
+def test_get_task_proxies_to_memory_service(tmp_path: Path) -> None:
+    with build_test_client(tmp_path) as client:
+        create_response = client.post(
+            "/tasks/domestic-payments",
+            json={
+                "customer_id": "cust_456",
+                "source_account_id": "acct_009",
+                "beneficiary_id": "ben_009",
+                "amount_usd": 125000,
+                "rail": "ach",
+                "requested_execution_date": "2026-03-24",
+                "initiated_by": "user.neil",
+            },
+        )
+        task_id = create_response.json()["task"]["task_id"]
+
+        get_response = client.get(f"/tasks/{task_id}")
+
+    assert get_response.status_code == 200
+    assert get_response.json()["task_id"] == task_id
+    assert get_response.json()["task_metadata"]["policy_decision"]["decision"] == "escalate"

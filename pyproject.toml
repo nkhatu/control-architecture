@@ -12,6 +12,7 @@ requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.14.0,<2.0.0",
   "fastapi>=0.115.0,<1.0.0",
+  "mcp>=1.0.0,<2.0.0",
   "uvicorn[standard]>=0.32.0,<1.0.0",
   "sqlalchemy>=2.0.36,<3.0.0",
   "psycopg[binary]>=3.2.3,<4.0.0",
@@ -26,12 +27,13 @@ dev = [
   "pytest>=8.3.4,<9.0.0",
 ]
 
-[tool.setuptools.package-dir]
-"" = "services/memory-service/src"
+[tool.setuptools]
+packages = ["memory_service", "orchestrator_api"]
 
-[tool.setuptools.packages.find]
-where = ["services/memory-service/src"]
+[tool.setuptools.package-dir]
+memory_service = "services/memory-service/src/memory_service"
+orchestrator_api = "apps/orchestrator-api/src/orchestrator_api"
 
 [tool.pytest.ini_options]
 addopts = "-q"
-testpaths = ["services/memory-service/tests"]
+testpaths = ["services/memory-service/tests", "apps/orchestrator-api/tests"]

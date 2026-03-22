@@ -22,3 +22,42 @@ Critical rule:
 
 - The orchestrator decides the next step.
 - The orchestrator does not make final release policy decisions.
+
+## Bootstrap Status
+
+This service now has a runnable FastAPI skeleton under [main.py](/Users/enkay/Documents/Scripts/Control%20Architecture/apps/orchestrator-api/src/orchestrator_api/main.py).
+
+Current PoC slice:
+
+- loads control-plane, capability, and agent registry YAML
+- applies a deterministic intake decision for domestic payment requests
+- persists the resulting task through `memory-service`
+- exposes `GET /tasks/{task_id}` as a read-through endpoint
+- exposes an MCP server adapter with tools, resources, and a review prompt
+
+## Local Run
+
+From the repo root:
+
+```bash
+uv sync --extra dev
+uv run uvicorn orchestrator_api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Run the MCP server over stdio:
+
+```bash
+uv run python -m orchestrator_api.mcp_server
+```
+
+Run the MCP server over Streamable HTTP on `http://127.0.0.1:8003/mcp`:
+
+```bash
+ORCHESTRATOR_MCP_TRANSPORT=streamable-http uv run python -m orchestrator_api.mcp_server
+```
+
+## Local Test
+
+```bash
+uv run pytest
+```
