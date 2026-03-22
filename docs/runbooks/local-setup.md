@@ -53,6 +53,8 @@ uv run uvicorn orchestrator_api.main:app --reload --host 0.0.0.0 --port 8000
 uv run pytest
 ```
 
+For a manual stack walkthrough, see [end-to-end-test.md](/Users/enkay/Documents/Scripts/Control%20Architecture/docs/runbooks/end-to-end-test.md).
+
 ## What Still Needs To Be Set Up
 
 - Backend runtime bootstrap for `control-plane`, `orchestrator-api`, `capability-gateway`, `context-memory-service`, `provenance-service`, `workflow-worker`, and `event-consumer`.
