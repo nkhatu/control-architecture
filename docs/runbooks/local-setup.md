@@ -1,5 +1,7 @@
 # Local Setup
 
+If you are starting from the GitHub repository for the first time, use [install-from-github.md](./install-from-github.md) first.
+
 ## Prerequisites
 
 - Docker Desktop or an equivalent local Docker runtime

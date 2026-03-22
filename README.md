@@ -142,6 +142,8 @@ For service-level run commands and MCP details, see [apps/orchestrator-api/READM
 
 For prerequisites, startup commands, and the end-to-end runbook, see [docs/runbooks/local-setup.md](docs/runbooks/local-setup.md).
 
+If you are starting from the public repo, use [docs/runbooks/install-from-github.md](docs/runbooks/install-from-github.md).
+
 ## Implementation Status
 
 | Area | Status | Current State | What Still Needs To Be Built |
