@@ -38,7 +38,7 @@ Full architecture document: [Protocol-Mediated Agentic Money Movement Control Pl
 ```text
 apps/
   ops-console/          operator UI for approvals, review, and investigations
-  orchestrator-api/     intake API, registry lookups, policy checks, workflow kickoff
+  orchestrator-api/     intake API, registry lookups, policy checks, workflow kickoff, MCP server adapter
   policy-service/       OPA bundle and policy-service notes
   capability-gateway/   typed wrappers around mock payment rails
 services/
@@ -71,3 +71,13 @@ docs/
 4. If allowed, `workflow-worker` drives validation, approval wait states, release, and ambiguous-response holds.
 5. `capability-gateway` talks to a mock rail and emits structured events.
 6. `event-consumer` updates read models and audit projections.
+
+## Current Implemented Slice
+
+The PoC currently includes:
+
+- `memory-service` as the durable task state and provenance boundary.
+- `orchestrator-api` as both a REST intake API and an MCP server adapter.
+- MCP tools, resources, and a review prompt exposed through the orchestrator for controlled task creation and retrieval.
+
+For service-level run commands and MCP details, see [apps/orchestrator-api/README.md](/Users/enkay/Documents/Scripts/Control%20Architecture/apps/orchestrator-api/README.md).
