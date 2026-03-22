@@ -20,7 +20,10 @@ def create_app(
     control_plane_config = load_yaml_file(app_settings.resolved_control_plane_config_path)
     owned_memory_client = memory_service_client is None
     owned_capability_client = capability_gateway_client is None
-    active_memory_client = memory_service_client or MemoryServiceHttpClient(app_settings.memory_service_base_url)
+    active_memory_client = memory_service_client or MemoryServiceHttpClient(
+        app_settings.context_memory_service_base_url,
+        app_settings.provenance_service_base_url,
+    )
     active_capability_client = capability_gateway_client or CapabilityGatewayHttpClient(
         app_settings.capability_gateway_base_url
     )
@@ -43,7 +46,7 @@ def create_app(
 
     app = FastAPI(
         title="Workflow Worker",
-        description="Executes the domestic payment workflow across memory-service and capability-gateway.",
+        description="Executes the domestic payment workflow across context-memory-service, provenance-service, and capability-gateway.",
         version="0.1.0",
         lifespan=lifespan,
     )
@@ -63,7 +66,8 @@ def create_app(
     @app.get("/metadata")
     def metadata(service: WorkflowWorkerService = Depends(get_service)) -> dict[str, object]:
         return service.metadata(
-            memory_service_base_url=app_settings.memory_service_base_url,
+            context_memory_service_base_url=app_settings.context_memory_service_base_url,
+            provenance_service_base_url=app_settings.provenance_service_base_url,
             capability_gateway_base_url=app_settings.capability_gateway_base_url,
             app_env=app_settings.app_env,
         )

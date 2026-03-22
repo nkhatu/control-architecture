@@ -29,7 +29,10 @@ def create_app(
     owned_memory_client = memory_service_client is None
     owned_policy_client = policy_service_client is None
     owned_workflow_client = workflow_worker_client is None
-    active_memory_client = memory_service_client or MemoryServiceHttpClient(app_settings.memory_service_base_url)
+    active_memory_client = memory_service_client or MemoryServiceHttpClient(
+        app_settings.context_memory_service_base_url,
+        app_settings.provenance_service_base_url,
+    )
     active_policy_client = policy_service_client or PolicyServiceHttpClient(app_settings.policy_service_base_url)
     active_workflow_client = workflow_worker_client or WorkflowWorkerHttpClient(app_settings.workflow_worker_base_url)
     service = OrchestrationService(
@@ -78,7 +81,8 @@ def create_app(
     @app.get("/metadata")
     def metadata(service: OrchestrationService = Depends(get_service)) -> dict[str, object]:
         return service.metadata(
-            app_settings.memory_service_base_url,
+            app_settings.context_memory_service_base_url,
+            app_settings.provenance_service_base_url,
             app_settings.policy_service_base_url,
             app_settings.workflow_worker_base_url,
             app_settings.app_name,

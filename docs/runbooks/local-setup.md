@@ -29,19 +29,14 @@
 uv sync --extra dev
 ```
 
-3. Apply database migrations:
+3. Start the split state services:
 
 ```bash
-uv run alembic upgrade head
+uv run uvicorn context_memory_service.main:app --reload --host 0.0.0.0 --port 8002
+uv run uvicorn provenance_service.main:app --reload --host 0.0.0.0 --port 8006
 ```
 
-4. Start the first service:
-
-```bash
-uv run uvicorn memory_service.main:app --reload --host 0.0.0.0 --port 8002
-```
-
-5. Run tests:
+4. Run tests:
 
 ```bash
 uv run pytest
@@ -49,7 +44,7 @@ uv run pytest
 
 ## What Still Needs To Be Set Up
 
-- Backend runtime bootstrap for `orchestrator-api`, `capability-gateway`, `memory-service`, `workflow-worker`, and `event-consumer`.
+- Backend runtime bootstrap for `orchestrator-api`, `capability-gateway`, `context-memory-service`, `provenance-service`, `workflow-worker`, and `event-consumer`.
 - Database schema for task state, approvals, provenance, and audit projections.
 - Temporal namespace and workflow registration.
 - OPA data loading so policy can read the control-plane thresholds.
@@ -60,9 +55,10 @@ uv run pytest
 
 ## Recommended Build Order
 
-1. `memory-service`
-2. `policy-service` integration
-3. `capability-gateway`
-4. `workflow-worker`
-5. `orchestrator-api`
-6. `ops-console`
+1. `context-memory-service`
+2. `provenance-service`
+3. `policy-service` integration
+4. `capability-gateway`
+5. `workflow-worker`
+6. `orchestrator-api`
+7. `ops-console`

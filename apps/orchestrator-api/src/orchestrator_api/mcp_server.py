@@ -31,7 +31,10 @@ def create_runtime(
     workflow_worker_client: WorkflowWorkerClient | None = None,
 ) -> McpRuntime:
     app_settings = settings or get_settings()
-    memory_client = memory_service_client or MemoryServiceHttpClient(app_settings.memory_service_base_url)
+    memory_client = memory_service_client or MemoryServiceHttpClient(
+        app_settings.context_memory_service_base_url,
+        app_settings.provenance_service_base_url,
+    )
     policy_client = policy_service_client or PolicyServiceHttpClient(app_settings.policy_service_base_url)
     workflow_client = workflow_worker_client or WorkflowWorkerHttpClient(app_settings.workflow_worker_base_url)
     snapshot = load_registry_snapshot(app_settings)

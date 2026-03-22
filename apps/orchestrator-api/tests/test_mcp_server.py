@@ -76,14 +76,23 @@ def stop_process(process: subprocess.Popen[str]) -> None:
 
 
 async def exercise_mcp_server(tmp_path: Path) -> None:
-    memory_process, memory_port = start_http_service(
-        "memory_service.main:app",
+    context_process, context_port = start_http_service(
+        "context_memory_service.main:app",
         {
-            "DATABASE_URL": f"sqlite+pysqlite:///{tmp_path / 'mcp-memory-service.db'}",
-            "AUTO_CREATE_SCHEMA": "true",
+            "CONTEXT_MEMORY_DATABASE_URL": f"sqlite+pysqlite:///{tmp_path / 'mcp-context-memory.db'}",
+            "CONTEXT_MEMORY_AUTO_CREATE_SCHEMA": "true",
             "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
         },
-        "MEMORY_SERVICE_PORT",
+        "CONTEXT_MEMORY_SERVICE_PORT",
+    )
+    provenance_process, provenance_port = start_http_service(
+        "provenance_service.main:app",
+        {
+            "PROVENANCE_DATABASE_URL": f"sqlite+pysqlite:///{tmp_path / 'mcp-provenance.db'}",
+            "PROVENANCE_AUTO_CREATE_SCHEMA": "true",
+            "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
+        },
+        "PROVENANCE_SERVICE_PORT",
     )
     capability_process, capability_port = start_http_service(
         "capability_gateway.main:app",
@@ -104,7 +113,8 @@ async def exercise_mcp_server(tmp_path: Path) -> None:
         "workflow_worker.main:app",
         {
             "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
-            "MEMORY_SERVICE_BASE_URL": f"http://127.0.0.1:{memory_port}",
+            "CONTEXT_MEMORY_SERVICE_BASE_URL": f"http://127.0.0.1:{context_port}",
+            "PROVENANCE_SERVICE_BASE_URL": f"http://127.0.0.1:{provenance_port}",
             "CAPABILITY_GATEWAY_BASE_URL": f"http://127.0.0.1:{capability_port}",
         },
         "WORKFLOW_WORKER_PORT",
@@ -114,7 +124,8 @@ async def exercise_mcp_server(tmp_path: Path) -> None:
         server_env.update(
             {
                 "ORCHESTRATOR_MCP_TRANSPORT": "stdio",
-                "MEMORY_SERVICE_BASE_URL": f"http://127.0.0.1:{memory_port}",
+                "CONTEXT_MEMORY_SERVICE_BASE_URL": f"http://127.0.0.1:{context_port}",
+                "PROVENANCE_SERVICE_BASE_URL": f"http://127.0.0.1:{provenance_port}",
                 "POLICY_SERVICE_BASE_URL": f"http://127.0.0.1:{policy_port}",
                 "WORKFLOW_WORKER_BASE_URL": f"http://127.0.0.1:{workflow_port}",
                 "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
@@ -186,7 +197,8 @@ async def exercise_mcp_server(tmp_path: Path) -> None:
         stop_process(workflow_process)
         stop_process(policy_process)
         stop_process(capability_process)
-        stop_process(memory_process)
+        stop_process(provenance_process)
+        stop_process(context_process)
 
 
 def test_mcp_server_supports_tools_resources_and_prompts(tmp_path: Path) -> None:

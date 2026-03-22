@@ -40,7 +40,8 @@ class OrchestrationService:
 
     def metadata(
         self,
-        memory_service_base_url: str,
+        context_memory_service_base_url: str,
+        provenance_service_base_url: str,
         policy_service_base_url: str,
         workflow_worker_base_url: str,
         app_name: str,
@@ -49,7 +50,8 @@ class OrchestrationService:
         return {
             "service": app_name,
             "environment": app_env,
-            "memory_service_base_url": memory_service_base_url,
+            "context_memory_service_base_url": context_memory_service_base_url,
+            "provenance_service_base_url": provenance_service_base_url,
             "policy_service_base_url": policy_service_base_url,
             "workflow_worker_base_url": workflow_worker_base_url,
             "capability_count": len(self.snapshot.capabilities),

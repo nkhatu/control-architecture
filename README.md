@@ -42,9 +42,10 @@ apps/
   policy-service/       deterministic policy decision service and OPA-aligned policy bundle
   capability-gateway/   typed wrappers around mock payment rails
 services/
+  context-memory-service/ current task snapshot and workflow-operational state
+  provenance-service/   append-only provenance, artifacts, and delegation records
   workflow-worker/      Temporal workflows and activities
   event-consumer/       async event handlers and read model updates
-  memory-service/       task state, provenance, and retrieval boundary
 packages/
   capability-schemas/   shared JSON schemas and protocol envelope
   policy-models/        role maps, thresholds, approval profiles
@@ -66,7 +67,7 @@ docs/
 ## PoC Flow
 
 1. `orchestrator-api` accepts a domestic payment task.
-2. It loads registries and current task context from `memory-service`.
+2. It loads current task context from `context-memory-service` and provenance records from `provenance-service`.
 3. It calls `policy-service` with explicit action, amount, rail, beneficiary status, and task-scoped scopes.
 4. If allowed, `workflow-worker` drives validation, approval wait states, release, and ambiguous-response holds.
 5. `capability-gateway` talks to a mock rail and emits structured events.
@@ -76,11 +77,12 @@ docs/
 
 The PoC currently includes:
 
-- `memory-service` as the durable task state and provenance boundary.
+- `context-memory-service` as the durable task snapshot boundary.
+- `provenance-service` as the append-only provenance and delegation boundary.
 - `orchestrator-api` as both a REST intake API and an MCP server adapter.
 - `policy-service` as the deterministic decision boundary for intake and release checks.
 - `workflow-worker` as the service that advances validation, approval wait states, and release.
-- delegated work records and protocol envelopes for compliance screening and approval routing.
+- a composite task-boundary client that merges context and provenance into one task view for the orchestrator and worker.
 - MCP tools, resources, and a review prompt exposed through the orchestrator for controlled task creation and retrieval.
 
 ## Delegated Agent Alignment
@@ -95,13 +97,15 @@ The current delegated-agent flow is:
 This aligns to the trust graph by making the parent agent, delegated agents, and context memory explicit:
 
 - the parent-agent role is implemented in `orchestrator-api` and carried into `workflow-worker`.
-- delegated work is persisted in `memory-service` with request and response envelopes, status, and provenance.
+- current workflow-operational state is persisted in `context-memory-service`.
+- delegated work and evidence are persisted in `provenance-service` with request and response envelopes, status, and provenance.
 - compliance screening and approval routing now execute as bounded delegated steps rather than as anonymous internal calls.
 
 This aligns to the platform architecture by preserving the core separation of concerns:
 
 - orchestration remains in `orchestrator-api` and `workflow-worker`.
-- durable state and delegation records remain in `memory-service`.
+- current state remains in `context-memory-service`.
+- provenance, artifacts, and delegation records remain in `provenance-service`.
 - rail-side execution remains behind `capability-gateway`.
 - protocol-level delegation data is carried as explicit machine-readable envelopes instead of implicit service calls.
 

@@ -43,13 +43,20 @@ class WorkflowWorkerService:
         self._delegated_agent_router = delegated_agent_router or DelegatedAgentRouter(capability_client)
         self._app_name = app_name
 
-    def metadata(self, memory_service_base_url: str, capability_gateway_base_url: str, app_env: str) -> dict[str, object]:
+    def metadata(
+        self,
+        context_memory_service_base_url: str,
+        provenance_service_base_url: str,
+        capability_gateway_base_url: str,
+        app_env: str,
+    ) -> dict[str, object]:
         environment = self._control_plane_config.get("environment", {})
         return {
             "service": self._app_name,
             "environment": app_env,
             "mode": environment.get("default_mode", "unknown"),
-            "memory_service_base_url": memory_service_base_url,
+            "context_memory_service_base_url": context_memory_service_base_url,
+            "provenance_service_base_url": provenance_service_base_url,
             "capability_gateway_base_url": capability_gateway_base_url,
         }
 

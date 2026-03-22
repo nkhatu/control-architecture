@@ -26,9 +26,13 @@ class AppSettings(BaseSettings):
         default="config/control-plane/default.yaml",
         validation_alias="CONTROL_PLANE_CONFIG_PATH",
     )
-    memory_service_base_url: str = Field(
+    context_memory_service_base_url: str = Field(
         default="http://localhost:8002",
-        validation_alias="MEMORY_SERVICE_BASE_URL",
+        validation_alias="CONTEXT_MEMORY_SERVICE_BASE_URL",
+    )
+    provenance_service_base_url: str = Field(
+        default="http://localhost:8006",
+        validation_alias="PROVENANCE_SERVICE_BASE_URL",
     )
     capability_gateway_base_url: str = Field(
         default="http://localhost:8001",

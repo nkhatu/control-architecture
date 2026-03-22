@@ -5,7 +5,8 @@ This service is the intake and coordination boundary for the PoC.
 Primary responsibilities:
 
 - Accept domestic payment tasks.
-- Load task context from the memory service.
+- Load current task context from `context-memory-service`.
+- Load provenance and delegation records from `provenance-service`.
 - Resolve capability and agent registry entries.
 - Request policy decisions before material actions.
 - Start or resume Temporal workflows.
@@ -33,7 +34,7 @@ Current PoC slice:
 - calls `policy-service` for deterministic intake and release decisions
 - starts and resumes the domestic payment workflow through `workflow-worker`
 - passes delegated-agent context into the workflow for compliance screening and approval routing
-- persists and reads durable task state through `memory-service`
+- reads merged task detail from `context-memory-service` and `provenance-service`
 - writes `release_policy_decision` artifacts before release resumes
 - exposes `GET /tasks/{task_id}` and `POST /tasks/{task_id}/resume`
 - exposes an MCP server adapter with tools, resources, and a review prompt

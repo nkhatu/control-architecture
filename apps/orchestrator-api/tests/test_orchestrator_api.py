@@ -5,47 +5,97 @@ from fastapi.testclient import TestClient
 
 from capability_gateway.config import AppSettings as CapabilityGatewaySettings
 from capability_gateway.main import create_app as create_capability_gateway_app
-from memory_service.config import AppSettings as MemorySettings
-from memory_service.main import create_app as create_memory_app
+from context_memory_service.config import AppSettings as ContextMemorySettings
+from context_memory_service.main import create_app as create_context_memory_app
 from orchestrator_api.config import AppSettings as OrchestratorSettings
 from orchestrator_api.main import create_app as create_orchestrator_app
 from policy_service.config import AppSettings as PolicyServiceSettings
 from policy_service.main import create_app as create_policy_service_app
+from provenance_service.config import AppSettings as ProvenanceSettings
+from provenance_service.main import create_app as create_provenance_app
 from workflow_worker.config import AppSettings as WorkflowWorkerSettings
 from workflow_worker.main import create_app as create_workflow_worker_app
 
 
 class InProcessMemoryServiceClient:
-    def __init__(self, client: TestClient):
-        self._client = client
+    def __init__(self, context_client: TestClient, provenance_client: TestClient):
+        self._context_client = context_client
+        self._provenance_client = provenance_client
 
     def create_task(self, payload: dict) -> dict:
-        response = self._client.post("/tasks", json=payload)
-        response.raise_for_status()
-        return response.json()
+        context_response = self._context_client.post(
+            "/tasks",
+            json={key: value for key, value in payload.items() if key != "provenance"},
+        )
+        context_response.raise_for_status()
+        context_task = context_response.json()
+        task_id = context_task["task_id"]
+        provenance = payload["provenance"]
+        provenance_response = self._provenance_client.post(f"/tasks/{task_id}/provenance", json=provenance)
+        provenance_response.raise_for_status()
+        transition_response = self._provenance_client.post(
+            f"/tasks/{task_id}/state-transitions",
+            json={
+                "from_status": None,
+                "to_status": context_task["status"],
+                "changed_by": provenance["initiated_by"],
+                "reason": "task created",
+            },
+        )
+        transition_response.raise_for_status()
+        return self.get_task(task_id)
 
     def get_task(self, task_id: str) -> dict:
-        response = self._client.get(f"/tasks/{task_id}")
-        response.raise_for_status()
-        return response.json()
+        context_response = self._context_client.get(f"/tasks/{task_id}")
+        context_response.raise_for_status()
+        records_response = self._provenance_client.get(f"/tasks/{task_id}/records")
+        records_response.raise_for_status()
+        context_task = context_response.json()
+        records = records_response.json()
+        return {
+            **context_task,
+            "provenance": records["provenance"],
+            "state_history": records["state_history"],
+            "artifacts": records["artifacts"],
+            "delegations": records["delegations"],
+        }
 
     def patch_task_state(self, task_id: str, payload: dict) -> dict:
-        response = self._client.patch(f"/tasks/{task_id}/state", json=payload)
+        current_task = self._context_client.get(f"/tasks/{task_id}")
+        current_task.raise_for_status()
+        response = self._context_client.patch(
+            f"/tasks/{task_id}/state",
+            json={
+                "status": payload["status"],
+                "approval_status": payload.get("approval_status"),
+                "beneficiary_status": payload.get("beneficiary_status"),
+            },
+        )
         response.raise_for_status()
-        return response.json()
+        transition_response = self._provenance_client.post(
+            f"/tasks/{task_id}/state-transitions",
+            json={
+                "from_status": current_task.json()["status"],
+                "to_status": payload["status"],
+                "changed_by": payload["changed_by"],
+                "reason": payload.get("reason"),
+            },
+        )
+        transition_response.raise_for_status()
+        return self.get_task(task_id)
 
     def create_artifact(self, task_id: str, payload: dict) -> dict:
-        response = self._client.post(f"/tasks/{task_id}/artifacts", json=payload)
+        response = self._provenance_client.post(f"/tasks/{task_id}/artifacts", json=payload)
         response.raise_for_status()
         return response.json()
 
     def create_delegation(self, task_id: str, payload: dict) -> dict:
-        response = self._client.post(f"/tasks/{task_id}/delegations", json=payload)
+        response = self._provenance_client.post(f"/tasks/{task_id}/delegations", json=payload)
         response.raise_for_status()
         return response.json()
 
     def update_delegation(self, delegation_id: str, payload: dict) -> dict:
-        response = self._client.patch(f"/delegations/{delegation_id}", json=payload)
+        response = self._provenance_client.patch(f"/delegations/{delegation_id}", json=payload)
         response.raise_for_status()
         return response.json()
 
@@ -114,13 +164,20 @@ class InProcessPolicyServiceClient:
 
 @contextmanager
 def build_test_client(tmp_path: Path):
-    database_path = tmp_path / "memory-service.db"
-    memory_settings = MemorySettings(
+    context_database_path = tmp_path / "context-memory.db"
+    provenance_database_path = tmp_path / "provenance.db"
+    context_settings = ContextMemorySettings(
         auto_create_schema=True,
-        database_url=f"sqlite+pysqlite:///{database_path}",
+        database_url=f"sqlite+pysqlite:///{context_database_path}",
         control_plane_config_path="config/control-plane/default.yaml",
     )
-    memory_app = create_memory_app(memory_settings)
+    provenance_settings = ProvenanceSettings(
+        auto_create_schema=True,
+        database_url=f"sqlite+pysqlite:///{provenance_database_path}",
+        control_plane_config_path="config/control-plane/default.yaml",
+    )
+    context_app = create_context_memory_app(context_settings)
+    provenance_app = create_provenance_app(provenance_settings)
 
     gateway_settings = CapabilityGatewaySettings(
         control_plane_config_path="config/control-plane/default.yaml",
@@ -140,18 +197,19 @@ def build_test_client(tmp_path: Path):
         agent_registry_path="config/registry/agents.yaml",
     )
     with ExitStack() as stack:
-        memory_client = stack.enter_context(TestClient(memory_app))
+        context_client = stack.enter_context(TestClient(context_app))
+        provenance_client = stack.enter_context(TestClient(provenance_app))
         gateway_client = stack.enter_context(TestClient(gateway_app))
         policy_client = stack.enter_context(TestClient(policy_app))
         workflow_worker_app = create_workflow_worker_app(
             worker_settings,
-            memory_service_client=InProcessMemoryServiceClient(memory_client),
+            memory_service_client=InProcessMemoryServiceClient(context_client, provenance_client),
             capability_gateway_client=InProcessCapabilityGatewayClient(gateway_client),
         )
         workflow_worker_client = stack.enter_context(TestClient(workflow_worker_app))
         orchestrator_app = create_orchestrator_app(
             orchestrator_settings,
-            memory_service_client=InProcessMemoryServiceClient(memory_client),
+            memory_service_client=InProcessMemoryServiceClient(context_client, provenance_client),
             policy_service_client=InProcessPolicyServiceClient(policy_client),
             workflow_worker_client=InProcessWorkflowWorkerClient(workflow_worker_client),
         )

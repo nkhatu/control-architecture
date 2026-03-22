@@ -30,9 +30,13 @@ class AppSettings(BaseSettings):
     mcp_host: str = Field(default="127.0.0.1", validation_alias="ORCHESTRATOR_MCP_HOST")
     mcp_port: int = Field(default=8003, validation_alias="ORCHESTRATOR_MCP_PORT")
 
-    memory_service_base_url: str = Field(
+    context_memory_service_base_url: str = Field(
         default="http://localhost:8002",
-        validation_alias="MEMORY_SERVICE_BASE_URL",
+        validation_alias="CONTEXT_MEMORY_SERVICE_BASE_URL",
+    )
+    provenance_service_base_url: str = Field(
+        default="http://localhost:8006",
+        validation_alias="PROVENANCE_SERVICE_BASE_URL",
     )
     policy_service_base_url: str = Field(
         default="http://localhost:8005",
