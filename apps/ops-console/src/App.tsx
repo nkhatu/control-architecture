@@ -29,7 +29,18 @@ interface ResumeFormState {
   idempotency_key: string;
 }
 
-type AppView = "overview" | "intake" | "approvals" | "explorer" | "exceptions";
+type AppView = "overview" | "trust-graph" | "intake" | "approvals" | "explorer" | "exceptions";
+
+interface TrustGraphMapping {
+  id: string;
+  label: string;
+  targetView: AppView;
+  targetLabel: string;
+  top: string;
+  left: string;
+  description: string;
+  detail: string;
+}
 
 const initialCreateForm: CreateFormState = {
   customer_id: "cust_123",
@@ -52,8 +63,97 @@ const initialResumeForm: ResumeFormState = {
 
 const exceptionStatuses: TaskStatus[] = ["pending_reconcile", "exception", "failed"];
 
+const trustGraphImage = new URL(
+  "../../../docs/architecture/Trust Graph - Agentic Domestic Money Movement.jpg",
+  import.meta.url,
+).href;
+
+const trustGraphMappings: TrustGraphMapping[] = [
+  {
+    id: "human-initiator",
+    label: "Human Initiator",
+    targetView: "intake",
+    targetLabel: "Create Payment",
+    top: "23%",
+    left: "10%",
+    description: "Start the workflow where the trust graph starts: a human-initiated payment request.",
+    detail: "Use the intake view to create a payment task before the controlled execution path begins.",
+  },
+  {
+    id: "parent-agent",
+    label: "Parent Agent",
+    targetView: "approvals",
+    targetLabel: "Approvals",
+    top: "22%",
+    left: "39%",
+    description: "Review the parent-agent checkpoint where approval-backed release continues the workflow.",
+    detail: "The approvals workbench is the closest operator-facing view to the parent-agent control handoff.",
+  },
+  {
+    id: "context-memory",
+    label: "Context Memory",
+    targetView: "explorer",
+    targetLabel: "Task Explorer",
+    top: "50%",
+    left: "25%",
+    description: "Inspect the current task snapshot and operational state owned by the context boundary.",
+    detail: "The task explorer is where the current merged state becomes visible to the operator.",
+  },
+  {
+    id: "provenance-plane",
+    label: "Provenance Plane",
+    targetView: "explorer",
+    targetLabel: "Task Explorer",
+    top: "50%",
+    left: "41%",
+    description: "Move into the provenance-heavy view for artifacts, state transitions, and delegated records.",
+    detail: "The explorer is where evidence, lineage, and approval traces are easiest to inspect.",
+  },
+  {
+    id: "control-plane",
+    label: "Control Plane",
+    targetView: "overview",
+    targetLabel: "Overview",
+    top: "50%",
+    left: "57%",
+    description: "Jump to the control summary that anchors policy and runtime guardrails.",
+    detail: "Overview is the operator-facing surface for the control-plane snapshot and queue posture.",
+  },
+  {
+    id: "delegated-agents",
+    label: "Delegated Agents",
+    targetView: "exceptions",
+    targetLabel: "Exceptions",
+    top: "26%",
+    left: "79%",
+    description: "Review delegated or exception-heavy work where compliance and approval routing can branch.",
+    detail: "Exception review is the cleanest place to inspect delegated work that did not remain routine.",
+  },
+  {
+    id: "capability-surface",
+    label: "Capability Surface",
+    targetView: "approvals",
+    targetLabel: "Approvals",
+    top: "50%",
+    left: "69%",
+    description: "Navigate to the stage where approved work is released through the capability surface.",
+    detail: "Approval-backed release is the closest operator action to a controlled capability invocation.",
+  },
+  {
+    id: "banking-systems",
+    label: "Banking Systems",
+    targetView: "exceptions",
+    targetLabel: "Exceptions",
+    top: "50%",
+    left: "91%",
+    description: "Focus on downstream ambiguity, reconciliation, and failure handling after invocation.",
+    detail: "The exceptions view is where downstream bank-facing outcomes are easiest to triage.",
+  },
+];
+
 const navigation: Array<{ view: AppView; label: string }> = [
   { view: "overview", label: "Overview" },
+  { view: "trust-graph", label: "Trust Graph" },
   { view: "intake", label: "Create Payment" },
   { view: "approvals", label: "Approvals" },
   { view: "explorer", label: "Task Explorer" },
@@ -260,8 +360,9 @@ export function App() {
           <p className="eyebrow">Ops Console</p>
           <h1>Approvals stay human. Control stays visible.</h1>
           <p className="hero-text">
-            The console now uses a top-menu flow instead of one long workspace. Move between overview, intake,
-            approvals, task inspection, and exception review without losing the current operator context.
+            The console now uses a top-menu flow instead of one long workspace. Move between the trust graph,
+            control overview, intake, approvals, task inspection, and exception review without losing the current
+            operator context.
           </p>
         </div>
 
@@ -364,6 +465,15 @@ export function App() {
               )}
             </SectionCard>
           </div>
+        ) : null}
+
+        {activeView === "trust-graph" ? (
+          <TrustGraphNavigator
+            approvalCount={approvalQueue.length}
+            exceptionCount={exceptionQueue.length}
+            latestTask={latestTask}
+            onNavigate={setActiveView}
+          />
         ) : null}
 
         {activeView === "intake" ? (
@@ -740,6 +850,83 @@ function TaskWorkbenchPanel(props: {
   );
 }
 
+function TrustGraphNavigator(props: {
+  approvalCount: number;
+  exceptionCount: number;
+  latestTask: RecentTaskRecord | null;
+  onNavigate: (view: AppView) => void;
+}) {
+  return (
+    <div className="view-grid view-grid-trust-graph">
+      <SectionCard
+        title="Trust Graph Navigator"
+        subtitle="Use the trust graph itself to move through the console surfaces that correspond to each architectural checkpoint."
+      >
+        <div className="graph-stage">
+          <figure className="graph-figure">
+            <img
+              alt="Trust Graph: Agentic Domestic Money Movement"
+              className="graph-image"
+              src={trustGraphImage}
+            />
+            <div className="graph-overlay" aria-hidden="true">
+              {trustGraphMappings.map((mapping) => (
+                <button
+                  key={mapping.id}
+                  aria-label={`${mapping.label}: open ${mapping.targetLabel}`}
+                  className="graph-hotspot"
+                  style={{ top: mapping.top, left: mapping.left }}
+                  type="button"
+                  onClick={() => props.onNavigate(mapping.targetView)}
+                >
+                  <span className="graph-hotspot-dot" />
+                  <span className="graph-hotspot-label">{mapping.label}</span>
+                </button>
+              ))}
+            </div>
+          </figure>
+
+          <p className="subtle-note">
+            Click any hotspot to jump from the architecture diagram into the closest operator-facing console view.
+          </p>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Graph To Console Mapping"
+        subtitle="Each graph component below maps to the view that best supports the operator task at that checkpoint."
+      >
+        <div className="summary-grid trust-graph-summary">
+          <SummaryItem label="Awaiting Approval" value={String(props.approvalCount)} />
+          <SummaryItem label="Exceptions" value={String(props.exceptionCount)} />
+          <SummaryItem label="Latest Task" value={props.latestTask ? shortHash(props.latestTask.taskId) : "None"} />
+          <SummaryItem label="Navigation Mode" value="Image-Driven" />
+        </div>
+
+        <div className="graph-mapping-grid">
+          {trustGraphMappings.map((mapping) => (
+            <article className="graph-mapping-card" key={mapping.id}>
+              <div className="graph-mapping-header">
+                <div>
+                  <strong>{mapping.label}</strong>
+                  <p className="record-meta">{mapping.description}</p>
+                </div>
+                <span className="chip chip-quiet">{mapping.targetLabel}</span>
+              </div>
+              <p className="graph-mapping-detail">{mapping.detail}</p>
+              <div className="graph-mapping-actions">
+                <button className="secondary-button" type="button" onClick={() => props.onNavigate(mapping.targetView)}>
+                  Open {mapping.targetLabel}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
 function SectionCard(props: {
   title: string;
   subtitle: string;
@@ -945,6 +1132,8 @@ function viewMeta(view: AppView, approvalCount: number, exceptionCount: number, 
   switch (view) {
     case "overview":
       return "control + queues";
+    case "trust-graph":
+      return "image navigation";
     case "intake":
       return "new payment";
     case "approvals":

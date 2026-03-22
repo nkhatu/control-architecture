@@ -4,10 +4,11 @@ The ops console is the operator-facing UI for approvals, task review, and except
 
 Current PoC slice:
 
-- uses a top menu to move between overview, payment intake, approvals, task explorer, and exception review
+- uses a top menu to move between overview, trust-graph navigation, payment intake, approvals, task explorer, and exception review
 - reads control summary and snapshot metadata from `control-plane`
 - creates domestic payment tasks through `orchestrator-api`
 - keeps a local recent-task queue in the browser until a server-side queue endpoint exists
+- includes a trust-graph page that uses the architecture image as a navigation surface into the console
 - lets an operator load a task by id and inspect:
   - current lifecycle state
   - provenance summary

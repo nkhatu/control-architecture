@@ -40,7 +40,7 @@ If you are starting from the GitHub repository for the first time, use [install-
 | End-to-end runbook | Built | Manual walkthrough in [end-to-end-test.md](./end-to-end-test.md) | Optional automation of the runbook as a scripted smoke test |
 | Database and infra | Partial | Local Docker scaffolding exists | Full Postgres-backed runtime, migrations in deployed flow, NATS subjects, Temporal namespace/workflow registration |
 | Security and auth | Partial | Basic structure only | JWT signing, delegated token validation, scoped authority enforcement, audit hardening |
-| Ops console | Built | React/Vite operator console with a top-menu layout for overview, payment intake, approvals, task explorer, and exception review, plus approval-backed release | Server-side queue/list endpoints, deeper investigation views, and authenticated operator sessions |
+| Ops console | Built | React/Vite operator console with a top-menu layout for overview, trust-graph navigation, payment intake, approvals, task explorer, and exception review, plus approval-backed release | Server-side queue/list endpoints, deeper investigation views, and authenticated operator sessions |
 
 ## Python Bootstrap
 
@@ -95,7 +95,7 @@ The dev server listens on port `3000` by default and proxies:
 Current UI notes:
 
 - The console uses a top menu instead of a single long page.
-- The main operator views are `Overview`, `Create Payment`, `Approvals`, `Task Explorer`, and `Exceptions`.
+- The main operator views are `Overview`, `Trust Graph`, `Create Payment`, `Approvals`, `Task Explorer`, and `Exceptions`.
 - The current visual theme is blue and is fully local to `apps/ops-console/src/styles.css`.
 
 ## Remaining Setup Focus
