@@ -31,7 +31,7 @@ services:
     ports:
       - "8181:8181"
     volumes:
-      - ./apps/policy-service/policies:/policies:ro
+      - ./apps/policy-engine/policies:/policies:ro
 
   temporal:
     image: temporalio/auto-setup

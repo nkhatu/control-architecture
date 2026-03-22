@@ -12,6 +12,7 @@ requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.14.0,<2.0.0",
   "fastapi>=0.115.0,<1.0.0",
+  "httpx>=0.28.1,<1.0.0",
   "mcp>=1.0.0,<2.0.0",
   "uvicorn[standard]>=0.32.0,<1.0.0",
   "sqlalchemy>=2.0.36,<3.0.0",
@@ -23,43 +24,42 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "httpx>=0.28.1,<1.0.0",
   "pytest>=8.3.4,<9.0.0",
 ]
 
 [tool.setuptools]
 packages = [
   "shared_contracts",
-  "control_plane_service",
+  "control_plane",
   "context_memory_service",
   "provenance_service",
   "event_consumer",
   "orchestrator_api",
   "capability_gateway",
   "workflow_worker",
-  "policy_service",
+  "policy_engine",
 ]
 
 [tool.setuptools.package-dir]
 shared_contracts = "packages/shared-contracts/src/shared_contracts"
-control_plane_service = "apps/control-plane-service/src/control_plane_service"
+control_plane = "apps/control-plane/src/control_plane"
 context_memory_service = "services/context-memory-service/src/context_memory_service"
 provenance_service = "services/provenance-service/src/provenance_service"
 event_consumer = "services/event-consumer/src/event_consumer"
 orchestrator_api = "apps/orchestrator-api/src/orchestrator_api"
 capability_gateway = "apps/capability-gateway/src/capability_gateway"
 workflow_worker = "services/workflow-worker/src/workflow_worker"
-policy_service = "apps/policy-service/src/policy_service"
+policy_engine = "apps/policy-engine/src/policy_engine"
 
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = [
-  "apps/control-plane-service/tests",
+  "apps/control-plane/tests",
   "services/context-memory-service/tests",
   "services/provenance-service/tests",
   "services/event-consumer/tests",
   "apps/orchestrator-api/tests",
   "apps/capability-gateway/tests",
   "services/workflow-worker/tests",
-  "apps/policy-service/tests",
+  "apps/policy-engine/tests",
 ]

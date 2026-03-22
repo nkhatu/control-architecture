@@ -4,7 +4,7 @@ from typing import Any
 from typing import Literal
 
 import yaml
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -42,13 +42,21 @@ class AppSettings(BaseSettings):
         default="http://localhost:8007",
         validation_alias="EVENT_CONSUMER_BASE_URL",
     )
-    policy_service_base_url: str = Field(
+    policy_engine_base_url: str = Field(
         default="http://localhost:8005",
-        validation_alias="POLICY_SERVICE_BASE_URL",
+        validation_alias=AliasChoices("POLICY_ENGINE_BASE_URL", "POLICY_SERVICE_BASE_URL"),
     )
     workflow_worker_base_url: str = Field(
         default="http://localhost:8004",
         validation_alias="WORKFLOW_WORKER_BASE_URL",
+    )
+    control_plane_base_url: str | None = Field(
+        default="http://localhost:8008",
+        validation_alias=AliasChoices("CONTROL_PLANE_BASE_URL", "CONTROL_PLANE_SERVICE_BASE_URL"),
+    )
+    control_plane_timeout_seconds: float = Field(
+        default=0.5,
+        validation_alias=AliasChoices("CONTROL_PLANE_TIMEOUT_SECONDS", "CONTROL_PLANE_SERVICE_TIMEOUT_SECONDS"),
     )
     control_plane_config_path: str = Field(
         default="config/control-plane/default.yaml",

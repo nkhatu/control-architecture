@@ -1,6 +1,6 @@
-# Control-Plane Service
+# Control Plane
 
-This service is the read-only runtime boundary for the PoC control plane.
+This app is the read-only runtime boundary for the PoC control plane.
 
 Current PoC slice:
 
@@ -30,11 +30,11 @@ From the repo root:
 
 ```bash
 uv sync --extra dev
-uv run uvicorn control_plane_service.main:app --reload --host 0.0.0.0 --port 8008
+uv run uvicorn control_plane.main:app --reload --host 0.0.0.0 --port 8008
 ```
 
 ## Local Test
 
 ```bash
-uv run pytest apps/control-plane-service/tests/test_control_plane_service.py
+uv run pytest apps/control-plane/tests/test_control_plane.py
 ```

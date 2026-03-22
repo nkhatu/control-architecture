@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
-from control_plane_service.config import AppSettings
-from control_plane_service.main import create_app
+from control_plane.config import AppSettings
+from control_plane.main import create_app
 
 
 def build_test_client() -> TestClient:
@@ -58,7 +58,7 @@ def test_metadata_reports_snapshot_and_counts() -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["service"] == "control-plane-service"
+    assert body["service"] == "control-plane"
     assert body["control_plane_environment"] == "poc-local"
     assert body["capability_count"] >= 5
     assert body["agent_count"] >= 3

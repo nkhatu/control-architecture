@@ -39,8 +39,8 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         yield
 
     app = FastAPI(
-        title="Control-Plane Service",
-        description="Read-only control-plane and registry publishing service for the PoC.",
+        title="Control Plane",
+        description="Read-only control-plane and registry publishing boundary for the PoC.",
         version="0.1.0",
         lifespan=lifespan,
     )

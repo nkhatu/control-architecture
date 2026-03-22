@@ -9,8 +9,8 @@ INTAKE_CAPABILITY_ID = "domestic_payment.validate_beneficiary_account"
 RELEASE_CAPABILITY_ID = "domestic_payment.release_approved_payment"
 
 
-class PolicyService:
-    def __init__(self, control_plane_config: dict[str, Any], app_name: str = "policy-service") -> None:
+class PolicyEngine:
+    def __init__(self, control_plane_config: dict[str, Any], app_name: str = "policy-engine") -> None:
         self._control_plane_config = control_plane_config
         self._app_name = app_name
 

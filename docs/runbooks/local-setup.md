@@ -40,8 +40,8 @@ uv run uvicorn event_consumer.main:app --reload --host 0.0.0.0 --port 8007
 4. Start the coordinating services as needed:
 
 ```bash
-uv run uvicorn policy_service.main:app --reload --host 0.0.0.0 --port 8005
-uv run uvicorn control_plane_service.main:app --reload --host 0.0.0.0 --port 8008
+uv run uvicorn control_plane.main:app --reload --host 0.0.0.0 --port 8008
+uv run uvicorn policy_engine.main:app --reload --host 0.0.0.0 --port 8005
 uv run uvicorn capability_gateway.main:app --reload --host 0.0.0.0 --port 8001
 uv run uvicorn workflow_worker.main:app --reload --host 0.0.0.0 --port 8004
 uv run uvicorn orchestrator_api.main:app --reload --host 0.0.0.0 --port 8000
@@ -55,7 +55,7 @@ uv run pytest
 
 ## What Still Needs To Be Set Up
 
-- Backend runtime bootstrap for `control-plane-service`, `orchestrator-api`, `capability-gateway`, `context-memory-service`, `provenance-service`, `workflow-worker`, and `event-consumer`.
+- Backend runtime bootstrap for `control-plane`, `orchestrator-api`, `capability-gateway`, `context-memory-service`, `provenance-service`, `workflow-worker`, and `event-consumer`.
 - Database schema for task state, approvals, provenance, and audit projections.
 - Temporal namespace and workflow registration.
 - OPA data loading so policy can read the control-plane thresholds.
@@ -69,8 +69,8 @@ uv run pytest
 1. `context-memory-service`
 2. `provenance-service`
 3. `event-consumer`
-4. `control-plane-service`
-5. `policy-service`
+4. `control-plane`
+5. `policy-engine`
 6. `capability-gateway`
 7. `workflow-worker`
 8. `orchestrator-api`

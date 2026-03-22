@@ -13,8 +13,8 @@ from event_consumer.config import AppSettings as EventConsumerSettings
 from event_consumer.main import create_app as create_event_consumer_app
 from orchestrator_api.config import AppSettings as OrchestratorSettings
 from orchestrator_api.main import create_app as create_orchestrator_app
-from policy_service.config import AppSettings as PolicyServiceSettings
-from policy_service.main import create_app as create_policy_service_app
+from policy_engine.config import AppSettings as PolicyEngineSettings
+from policy_engine.main import create_app as create_policy_engine_app
 from provenance_service.config import AppSettings as ProvenanceSettings
 from provenance_service.main import create_app as create_provenance_app
 from workflow_worker.config import AppSettings as WorkflowWorkerSettings
@@ -120,7 +120,7 @@ class InProcessWorkflowWorkerClient:
         return None
 
 
-class InProcessPolicyServiceClient:
+class InProcessPolicyEngineClient:
     def __init__(self, client: TestClient):
         self._client = client
 
@@ -160,8 +160,8 @@ def build_test_client(tmp_path: Path):
         capability_registry_path="config/registry/capabilities.yaml",
     )
     gateway_app = create_capability_gateway_app(gateway_settings)
-    policy_settings = PolicyServiceSettings(control_plane_config_path="config/control-plane/default.yaml")
-    policy_app = create_policy_service_app(policy_settings)
+    policy_settings = PolicyEngineSettings(control_plane_config_path="config/control-plane/default.yaml")
+    policy_app = create_policy_engine_app(policy_settings)
     event_settings = EventConsumerSettings(control_plane_config_path="config/control-plane/default.yaml")
 
     worker_settings = WorkflowWorkerSettings(
@@ -193,7 +193,7 @@ def build_test_client(tmp_path: Path):
         orchestrator_app = create_orchestrator_app(
             orchestrator_settings,
             memory_service_client=InProcessMemoryServiceClient(context_client, provenance_client, event_consumer_client),
-            policy_service_client=InProcessPolicyServiceClient(policy_client),
+            policy_engine_client=InProcessPolicyEngineClient(policy_client),
             workflow_worker_client=InProcessWorkflowWorkerClient(workflow_worker_client),
         )
         orchestrator_client = stack.enter_context(TestClient(orchestrator_app))

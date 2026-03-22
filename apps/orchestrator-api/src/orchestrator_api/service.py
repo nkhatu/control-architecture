@@ -5,7 +5,7 @@ import hashlib
 from shared_contracts.tasks import ReleasePolicyDecisionArtifactContent, TaskDetailView
 
 from .memory_client import MemoryServiceClient, MemoryServiceError
-from .policy_client import PolicyServiceClient, PolicyServiceError
+from .policy_client import PolicyEngineClient, PolicyEngineError
 from .registry import RegistrySnapshot
 from .schemas import (
     DomesticPaymentIntakeRequest,
@@ -31,7 +31,7 @@ class OrchestrationService:
         snapshot: RegistrySnapshot,
         memory_client: MemoryServiceClient,
         workflow_client: WorkflowWorkerClient,
-        policy_client: PolicyServiceClient,
+        policy_client: PolicyEngineClient,
         app_name: str = "orchestrator-api",
     ):
         self.snapshot = snapshot
@@ -44,7 +44,7 @@ class OrchestrationService:
         self,
         context_memory_service_base_url: str,
         provenance_service_base_url: str,
-        policy_service_base_url: str,
+        policy_engine_base_url: str,
         workflow_worker_base_url: str,
         app_name: str,
         app_env: str,
@@ -54,7 +54,7 @@ class OrchestrationService:
             "environment": app_env,
             "context_memory_service_base_url": context_memory_service_base_url,
             "provenance_service_base_url": provenance_service_base_url,
-            "policy_service_base_url": policy_service_base_url,
+            "policy_engine_base_url": policy_engine_base_url,
             "workflow_worker_base_url": workflow_worker_base_url,
             "capability_count": len(self.snapshot.capabilities),
             "agent_count": len(self.snapshot.agents),
@@ -199,7 +199,7 @@ class OrchestrationService:
                     },
                 }
             )
-        except PolicyServiceError as exc:
+        except PolicyEngineError as exc:
             raise OrchestrationServiceError(str(exc), status_code=exc.status_code, error_class=exc.error_class) from exc
 
         return PolicyDecisionResponse.model_validate(decision)
@@ -237,7 +237,7 @@ class OrchestrationService:
                     "trace_id": task.provenance.trace_id,
                 }
             )
-        except PolicyServiceError as exc:
+        except PolicyEngineError as exc:
             raise OrchestrationServiceError(str(exc), status_code=exc.status_code, error_class=exc.error_class) from exc
 
         return PolicyDecisionResponse.model_validate(decision)

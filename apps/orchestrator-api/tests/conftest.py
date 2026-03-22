@@ -9,7 +9,7 @@ PROVENANCE_SRC = PROJECT_ROOT / "services" / "provenance-service" / "src"
 EVENT_CONSUMER_SRC = PROJECT_ROOT / "services" / "event-consumer" / "src"
 CAPABILITY_GATEWAY_SRC = PROJECT_ROOT / "apps" / "capability-gateway" / "src"
 WORKFLOW_WORKER_SRC = PROJECT_ROOT / "services" / "workflow-worker" / "src"
-POLICY_SERVICE_SRC = PROJECT_ROOT / "apps" / "policy-service" / "src"
+POLICY_ENGINE_SRC = PROJECT_ROOT / "apps" / "policy-engine" / "src"
 
 for source_root in (
     ORCHESTRATOR_SRC,
@@ -18,7 +18,7 @@ for source_root in (
     EVENT_CONSUMER_SRC,
     CAPABILITY_GATEWAY_SRC,
     WORKFLOW_WORKER_SRC,
-    POLICY_SERVICE_SRC,
+    POLICY_ENGINE_SRC,
 ):
     if str(source_root) not in sys.path:
         sys.path.insert(0, str(source_root))

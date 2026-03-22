@@ -15,7 +15,7 @@ Expected artifacts:
 
 Use this package when:
 
-- the policy-service needs versioned thresholds or approval metadata
+- the policy-engine needs versioned thresholds or approval metadata
 - a control-plane rule should be represented as data instead of code
 - tests need stable policy fixtures
 
@@ -23,7 +23,7 @@ Do not use this package for:
 
 - Python runtime DTOs shared between services
 - JSON Schema contract documents
-- the policy-service API handlers or decision engine itself
+- the policy-engine API handlers or decision engine itself
 
 Relationship to nearby packages:
 

@@ -8,7 +8,7 @@ from mcp.server.fastmcp import FastMCP
 
 from .config import AppSettings, get_settings
 from .memory_client import MemoryServiceClient, MemoryServiceHttpClient
-from .policy_client import PolicyServiceClient, PolicyServiceHttpClient
+from .policy_client import PolicyEngineClient, PolicyEngineHttpClient
 from .registry import load_registry_snapshot
 from .schemas import DomesticPaymentIntakeRequest, DomesticPaymentResumeRequest
 from .service import OrchestrationService
@@ -20,14 +20,14 @@ class McpRuntime:
     settings: AppSettings
     service: OrchestrationService
     memory_client: MemoryServiceClient
-    policy_client: PolicyServiceClient
+    policy_client: PolicyEngineClient
     workflow_client: WorkflowWorkerClient
 
 
 def create_runtime(
     settings: AppSettings | None = None,
     memory_service_client: MemoryServiceClient | None = None,
-    policy_service_client: PolicyServiceClient | None = None,
+    policy_engine_client: PolicyEngineClient | None = None,
     workflow_worker_client: WorkflowWorkerClient | None = None,
 ) -> McpRuntime:
     app_settings = settings or get_settings()
@@ -36,7 +36,7 @@ def create_runtime(
         app_settings.provenance_service_base_url,
         app_settings.event_consumer_base_url,
     )
-    policy_client = policy_service_client or PolicyServiceHttpClient(app_settings.policy_service_base_url)
+    policy_client = policy_engine_client or PolicyEngineHttpClient(app_settings.policy_engine_base_url)
     workflow_client = workflow_worker_client or WorkflowWorkerHttpClient(app_settings.workflow_worker_base_url)
     snapshot = load_registry_snapshot(app_settings)
     service = OrchestrationService(
@@ -58,10 +58,10 @@ def create_runtime(
 def create_mcp_server(
     settings: AppSettings | None = None,
     memory_service_client: MemoryServiceClient | None = None,
-    policy_service_client: PolicyServiceClient | None = None,
+    policy_engine_client: PolicyEngineClient | None = None,
     workflow_worker_client: WorkflowWorkerClient | None = None,
 ) -> FastMCP:
-    runtime = create_runtime(settings, memory_service_client, policy_service_client, workflow_worker_client)
+    runtime = create_runtime(settings, memory_service_client, policy_engine_client, workflow_worker_client)
 
     mcp = FastMCP(
         name="Agentic Money Movement Orchestrator",

@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,10 +18,10 @@ class AppSettings(BaseSettings):
         populate_by_name=True,
     )
 
-    app_name: str = "control-plane-service"
+    app_name: str = "control-plane"
     app_env: str = "local"
     host: str = "0.0.0.0"
-    port: int = Field(default=8008, validation_alias="CONTROL_PLANE_SERVICE_PORT")
+    port: int = Field(default=8008, validation_alias=AliasChoices("CONTROL_PLANE_PORT", "CONTROL_PLANE_SERVICE_PORT"))
     control_plane_config_path: str = Field(
         default="config/control-plane/default.yaml",
         validation_alias="CONTROL_PLANE_CONFIG_PATH",

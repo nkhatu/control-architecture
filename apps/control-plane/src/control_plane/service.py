@@ -34,7 +34,7 @@ class ControlPlaneService:
         control_plane_path: Path,
         capability_registry_path: Path,
         agent_registry_path: Path,
-        app_name: str = "control-plane-service",
+        app_name: str = "control-plane",
     ) -> None:
         self._app_name = app_name
         self._control_plane_document = control_plane_document

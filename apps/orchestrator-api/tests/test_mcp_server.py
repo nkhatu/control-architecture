@@ -103,11 +103,11 @@ async def exercise_mcp_server(tmp_path: Path) -> None:
         "CAPABILITY_GATEWAY_PORT",
     )
     policy_process, policy_port = start_http_service(
-        "policy_service.main:app",
+        "policy_engine.main:app",
         {
             "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
         },
-        "POLICY_SERVICE_PORT",
+        "POLICY_ENGINE_PORT",
     )
     event_consumer_process, event_consumer_port = start_http_service(
         "event_consumer.main:app",
@@ -137,7 +137,7 @@ async def exercise_mcp_server(tmp_path: Path) -> None:
                 "CONTEXT_MEMORY_SERVICE_BASE_URL": f"http://127.0.0.1:{context_port}",
                 "PROVENANCE_SERVICE_BASE_URL": f"http://127.0.0.1:{provenance_port}",
                 "EVENT_CONSUMER_BASE_URL": f"http://127.0.0.1:{event_consumer_port}",
-                "POLICY_SERVICE_BASE_URL": f"http://127.0.0.1:{policy_port}",
+                "POLICY_ENGINE_BASE_URL": f"http://127.0.0.1:{policy_port}",
                 "WORKFLOW_WORKER_BASE_URL": f"http://127.0.0.1:{workflow_port}",
                 "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
                 "CAPABILITY_REGISTRY_PATH": "config/registry/capabilities.yaml",

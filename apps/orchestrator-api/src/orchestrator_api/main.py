@@ -7,7 +7,7 @@ from shared_contracts.tasks import TaskDetailView
 
 from .config import AppSettings, get_settings
 from .memory_client import MemoryServiceClient, MemoryServiceHttpClient
-from .policy_client import PolicyServiceClient, PolicyServiceHttpClient
+from .policy_client import PolicyEngineClient, PolicyEngineHttpClient
 from .registry import load_registry_snapshot
 from .schemas import (
     DomesticPaymentIntakeRequest,
@@ -22,20 +22,20 @@ from .workflow_client import WorkflowWorkerClient, WorkflowWorkerHttpClient
 def create_app(
     settings: AppSettings | None = None,
     memory_service_client: MemoryServiceClient | None = None,
-    policy_service_client: PolicyServiceClient | None = None,
+    policy_engine_client: PolicyEngineClient | None = None,
     workflow_worker_client: WorkflowWorkerClient | None = None,
 ) -> FastAPI:
     app_settings = settings or get_settings()
     registry_snapshot = load_registry_snapshot(app_settings)
     owned_memory_client = memory_service_client is None
-    owned_policy_client = policy_service_client is None
+    owned_policy_client = policy_engine_client is None
     owned_workflow_client = workflow_worker_client is None
     active_memory_client = memory_service_client or MemoryServiceHttpClient(
         app_settings.context_memory_service_base_url,
         app_settings.provenance_service_base_url,
         app_settings.event_consumer_base_url,
     )
-    active_policy_client = policy_service_client or PolicyServiceHttpClient(app_settings.policy_service_base_url)
+    active_policy_client = policy_engine_client or PolicyEngineHttpClient(app_settings.policy_engine_base_url)
     active_workflow_client = workflow_worker_client or WorkflowWorkerHttpClient(app_settings.workflow_worker_base_url)
     service = OrchestrationService(
         registry_snapshot,
@@ -50,7 +50,7 @@ def create_app(
         app.state.settings = app_settings
         app.state.registry_snapshot = registry_snapshot
         app.state.memory_service_client = active_memory_client
-        app.state.policy_service_client = active_policy_client
+        app.state.policy_engine_client = active_policy_client
         app.state.workflow_worker_client = active_workflow_client
         app.state.service = service
         yield
@@ -85,7 +85,7 @@ def create_app(
         return service.metadata(
             app_settings.context_memory_service_base_url,
             app_settings.provenance_service_base_url,
-            app_settings.policy_service_base_url,
+            app_settings.policy_engine_base_url,
             app_settings.workflow_worker_base_url,
             app_settings.app_name,
             app_settings.app_env,

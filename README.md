@@ -6,7 +6,7 @@ The PoC is intentionally narrow:
 
 - One domestic payment workflow: draft -> validate -> approval -> release -> settlement pending.
 - One execution adapter: a mock domestic rail behind the capability gateway.
-- One deterministic policy path: `policy-service` decides whether the action is allowed, denied, or escalated using an OPA-aligned control model.
+- One deterministic policy path: `policy-engine` decides whether the action is allowed, denied, or escalated using an OPA-aligned control model.
 - One split state boundary: `context-memory-service` owns the current task snapshot while `provenance-service` owns append-only evidence.
 - One event-driven consistency path: `context-memory-service` emits transactional outbox events and `event-consumer` projects them into `provenance-service`.
 
@@ -38,9 +38,9 @@ Full architecture document: [Protocol-Mediated Agentic Money Movement Control Pl
 ```text
 apps/
   ops-console/          operator UI for approvals, review, and investigations
-  control-plane-service/ read-only control-plane and registry publishing boundary
+  control-plane/        read-only control-plane and registry publishing boundary
   orchestrator-api/     intake API, registry lookups, policy checks, workflow kickoff, MCP server adapter
-  policy-service/       deterministic policy decision service and OPA-aligned policy bundle
+  policy-engine/        deterministic policy decision engine and OPA-aligned policy bundle
   capability-gateway/   typed wrappers around mock payment rails
 services/
   context-memory-service/ current task snapshot and workflow-operational state
@@ -73,7 +73,7 @@ docs/
 2. `context-memory-service` persists the current task snapshot and writes an outbox event in the same transaction.
 3. `event-consumer` claims the outbox event and projects it into `provenance-service` with idempotent replay protection.
 4. `orchestrator-api` and `workflow-worker` read merged task detail from `context-memory-service` and `provenance-service`.
-5. `policy-service` evaluates explicit intake and release decisions.
+5. `policy-engine` evaluates explicit intake and release decisions.
 6. If allowed, `workflow-worker` drives validation, approval wait states, release, and ambiguous-response holds.
 7. `capability-gateway` talks to a mock rail and returns typed release outcomes.
 
@@ -98,14 +98,15 @@ For more detail, see [packages/README.md](packages/README.md).
 
 The PoC currently includes:
 
-- `control-plane-service` as a read-only runtime boundary for control-plane and registry publication.
+- `control-plane` as a read-only runtime boundary for control-plane and registry publication.
+- `orchestrator-api` and `policy-engine` consuming `control-plane` as the primary config source, with local file fallback for isolated development and tests.
 - `context-memory-service` as the durable task snapshot boundary.
 - `provenance-service` as the append-only provenance and delegation boundary.
 - a transactional outbox in `context-memory-service` for task create and state-change events.
 - `event-consumer` as the projection service that reconciles context into provenance.
 - `shared-contracts` as the typed contract package for lifecycle events and merged task views.
 - `orchestrator-api` as both a REST intake API and an MCP server adapter.
-- `policy-service` as the deterministic decision boundary for intake and release checks.
+- `policy-engine` as the deterministic decision boundary for intake and release checks.
 - `workflow-worker` as the service that advances validation, approval wait states, and release.
 - a composite task-boundary client that merges context and provenance into one task view for the orchestrator and worker.
 - MCP tools, resources, and a review prompt exposed through the orchestrator for controlled task creation and retrieval.

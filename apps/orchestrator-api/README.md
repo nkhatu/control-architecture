@@ -30,8 +30,8 @@ This service now has a runnable FastAPI skeleton under [main.py](/Users/enkay/Do
 
 Current PoC slice:
 
-- loads control-plane, capability, and agent registry YAML
-- calls `policy-service` for deterministic intake and release decisions
+- loads control-plane, capability, and agent registry data from `control-plane`, with local YAML fallback
+- calls `policy-engine` for deterministic intake and release decisions
 - starts and resumes the domestic payment workflow through `workflow-worker`
 - passes delegated-agent context into the workflow for compliance screening and approval routing
 - reads merged task detail from `context-memory-service` and `provenance-service`
