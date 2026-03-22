@@ -63,10 +63,7 @@ const initialResumeForm: ResumeFormState = {
 
 const exceptionStatuses: TaskStatus[] = ["pending_reconcile", "exception", "failed"];
 
-const trustGraphImage = new URL(
-  "../../../docs/architecture/Trust Graph - Agentic Domestic Money Movement.jpg",
-  import.meta.url,
-).href;
+const trustGraphImage = `${import.meta.env.BASE_URL}trust-graph-agentic-domestic-money-movement.jpg`;
 
 const trustGraphMappings: TrustGraphMapping[] = [
   {
