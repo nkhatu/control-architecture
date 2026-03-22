@@ -30,5 +30,5 @@ Relationship to nearby packages:
 
 Current examples in this repo live under:
 
-- [tasks.py](/Users/enkay/Documents/Scripts/Control%20Architecture/packages/shared-contracts/src/shared_contracts/tasks.py)
-- [events.py](/Users/enkay/Documents/Scripts/Control%20Architecture/packages/shared-contracts/src/shared_contracts/events.py)
+- [tasks.py](./src/shared_contracts/tasks.py)
+- [events.py](./src/shared_contracts/events.py)

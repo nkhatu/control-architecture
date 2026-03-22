@@ -25,7 +25,7 @@ The first workflow should model these states:
 
 ## Bootstrap Status
 
-This service now has a runnable FastAPI skeleton under [main.py](/Users/enkay/Documents/Scripts/Control%20Architecture/services/workflow-worker/src/workflow_worker/main.py).
+This service now has a runnable FastAPI skeleton under [main.py](./src/workflow_worker/main.py).
 
 Current PoC slice:
 

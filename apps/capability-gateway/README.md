@@ -19,7 +19,7 @@ PoC implementation notes:
 
 ## Bootstrap Status
 
-This service now has a runnable FastAPI skeleton under [main.py](/Users/enkay/Documents/Scripts/Control%20Architecture/apps/capability-gateway/src/capability_gateway/main.py).
+This service now has a runnable FastAPI skeleton under [main.py](./src/capability_gateway/main.py).
 
 Current PoC slice:
 

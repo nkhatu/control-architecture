@@ -11,7 +11,7 @@ This flow uses local SQLite files for `context-memory-service` and `provenance-s
 
 ## Prerequisites
 
-- Work from the repo root: [Control Architecture](/Users/enkay/Documents/Scripts/Control%20Architecture)
+- Work from the repo root: `Control Architecture`
 - Use Python 3.12+ with `uv` installed
 - Install dependencies first:
 

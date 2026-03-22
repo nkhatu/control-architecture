@@ -10,7 +10,7 @@
 ## Initial Setup
 
 1. Copy `.env.example` to `.env`.
-2. Review [config/control-plane/default.yaml](/Users/enkay/Documents/Scripts/Control Architecture/config/control-plane/default.yaml) and confirm PoC thresholds.
+2. Review [config/control-plane/default.yaml](../../config/control-plane/default.yaml) and confirm PoC thresholds.
 3. Start local dependencies with `make infra-up`.
 4. Confirm ports:
    - Postgres `5432`
@@ -20,48 +20,25 @@
    - Temporal `7233`
    - Temporal UI `8080`
 
-## Built Components
+## Implementation Status
 
-The current PoC already includes these runnable components:
-
-- `control-plane`
-  - read-only control-plane and registry publishing boundary
-  - publishes the control-plane document, capability registry, agent registry, and snapshot/version metadata
-- `policy-engine`
-  - deterministic intake and release decision boundary
-  - reads control settings from `control-plane`, with local file fallback
-- `capability-gateway`
-  - typed wrappers around the mock domestic rail
-  - supports instruction creation, beneficiary validation, release, status lookup, and idempotency replay
-  - reads control settings and registry data from `control-plane`, with local file fallback
-- `context-memory-service`
-  - current task snapshot boundary
-  - owns operational task state and the transactional outbox
-- `provenance-service`
-  - append-only provenance, artifacts, state transitions, and delegated work records
-- `event-consumer`
-  - projects outbox events from `context-memory-service` into `provenance-service`
-  - provides idempotent event-driven consistency for task creation and state changes
-- `workflow-worker`
-  - drives the payment workflow from intake through validation, approval wait state, release, and ambiguous-result handling
-  - reads control settings from `control-plane`, with local file fallback
-- `orchestrator-api`
-  - intake and coordination boundary for domestic payment tasks
-  - reads registry and control data from `control-plane`, with local file fallback
-  - calls `policy-engine` for decisions and `workflow-worker` for execution
-  - exposes both REST endpoints and an MCP adapter
-
-Shared PoC building blocks already in place:
-
-- split operational state between `context-memory-service` and `provenance-service`
-- typed shared contracts in `packages/shared-contracts`
-- language-neutral schemas in `packages/capability-schemas`
-- delegated-agent runtime for:
-  - `agent.payment_orchestrator`
-  - `agent.compliance_screening`
-  - `agent.approval_router`
-- outbox-driven projection from context into provenance
-- manual end-to-end runbook in [end-to-end-test.md](/Users/enkay/Documents/Scripts/Control%20Architecture/docs/runbooks/end-to-end-test.md)
+| Area | Status | Current State | What Still Needs To Be Built |
+| --- | --- | --- | --- |
+| `control-plane` | Built | Read-only control-plane and registry publishing boundary with snapshot/version endpoints | Versioned write APIs, approval/audit workflow for control changes |
+| `policy-engine` | Built | Deterministic intake and release decisions, reading from `control-plane` with local fallback | Real OPA-backed evaluation path and bundle/data loading |
+| `capability-gateway` | Built | Typed mock rail wrappers for instruction creation, beneficiary validation, release, status, and idempotency replay | Real bank/rail adapter beyond the mock rail |
+| `context-memory-service` | Built | Current task snapshot boundary with transactional outbox | Production persistence hardening and full migration flow against Postgres |
+| `provenance-service` | Built | Append-only provenance, artifacts, state transitions, and delegated work records | Additional provenance projection types beyond the current slice |
+| `event-consumer` | Built | Idempotent projection of task create and state-change outbox events into provenance | Broader event coverage and durable broker-backed runtime |
+| `workflow-worker` | Built | End-to-end workflow from intake through validation, approval wait, release, and ambiguous-result handling | Temporal-native execution instead of the current local HTTP worker flow |
+| `orchestrator-api` | Built | REST intake/resume APIs plus MCP adapter, reading from `control-plane` and coordinating policy + workflow | Broader protocol surface and tighter runtime policy provenance/version pinning |
+| Split state boundary | Built | `context-memory-service` and `provenance-service` are separated | Stronger consistency and replay handling across more record types |
+| Shared contracts | Built | Typed Python contracts in `packages/shared-contracts` and JSON schemas in `packages/capability-schemas` | More typed transport DTOs for remaining loose payloads |
+| Delegated-agent runtime | Built | Parent/delegated flow for `agent.payment_orchestrator`, `agent.compliance_screening`, and `agent.approval_router` | Broader delegated execution coverage for additional actions |
+| End-to-end runbook | Built | Manual walkthrough in [end-to-end-test.md](./end-to-end-test.md) | Optional automation of the runbook as a scripted smoke test |
+| Database and infra | Partial | Local Docker scaffolding exists | Full Postgres-backed runtime, migrations in deployed flow, NATS subjects, Temporal namespace/workflow registration |
+| Security and auth | Partial | Basic structure only | JWT signing, delegated token validation, scoped authority enforcement, audit hardening |
+| Ops console | Not built | Placeholder only | Bootstrap app and first approval/review screens |
 
 ## Python Bootstrap
 
@@ -96,17 +73,15 @@ uv run uvicorn orchestrator_api.main:app --reload --host 0.0.0.0 --port 8000
 uv run pytest
 ```
 
-For a manual stack walkthrough, see [end-to-end-test.md](/Users/enkay/Documents/Scripts/Control%20Architecture/docs/runbooks/end-to-end-test.md).
+For a manual stack walkthrough, see [end-to-end-test.md](./end-to-end-test.md).
 
-## What Still Needs To Be Set Up
+## Remaining Setup Focus
 
-- Database schema for task state, approvals, provenance, and audit projections.
-- Temporal namespace and workflow registration.
-- OPA data loading so policy can read the control-plane thresholds.
-- NATS subjects and event naming conventions for approvals, payments, and reconciliation.
-- JWT signing and delegated token validation for task-scoped authority.
-- A mock rail adapter that can return success, reject, and ambiguous responses.
-- Ops console app bootstrapping and the first approval queue screen.
+- Temporal namespace and workflow registration
+- OPA data loading so policy can read the control-plane thresholds
+- NATS subjects and event naming conventions for approvals, payments, and reconciliation
+- JWT signing and delegated token validation for task-scoped authority
+- Ops console app bootstrapping and the first approval queue screen
 
 ## Recommended Build Order
 
