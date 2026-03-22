@@ -4,7 +4,7 @@
 
 - Docker Desktop or an equivalent local Docker runtime
 - `make`
-- Node.js 20+ for the future ops console
+- Node.js 20+ for the ops console
 - Python 3.12+ for backend services and workflow workers
 
 ## Initial Setup
@@ -38,7 +38,7 @@
 | End-to-end runbook | Built | Manual walkthrough in [end-to-end-test.md](./end-to-end-test.md) | Optional automation of the runbook as a scripted smoke test |
 | Database and infra | Partial | Local Docker scaffolding exists | Full Postgres-backed runtime, migrations in deployed flow, NATS subjects, Temporal namespace/workflow registration |
 | Security and auth | Partial | Basic structure only | JWT signing, delegated token validation, scoped authority enforcement, audit hardening |
-| Ops console | Not built | Placeholder only | Bootstrap app and first approval/review screens |
+| Ops console | Built | React/Vite operator console with a top-menu layout for overview, payment intake, approvals, task explorer, and exception review, plus approval-backed release | Server-side queue/list endpoints, deeper investigation views, and authenticated operator sessions |
 
 ## Python Bootstrap
 
@@ -75,13 +75,33 @@ uv run pytest
 
 For a manual stack walkthrough, see [end-to-end-test.md](./end-to-end-test.md).
 
+## Frontend Bootstrap
+
+From the repo root:
+
+```bash
+cd apps/ops-console
+npm install
+npm run dev
+```
+
+The dev server listens on port `3000` by default and proxies:
+
+- `/api/orchestrator` -> `http://127.0.0.1:8000`
+- `/api/control-plane` -> `http://127.0.0.1:8008`
+
+Current UI notes:
+
+- The console uses a top menu instead of a single long page.
+- The main operator views are `Overview`, `Create Payment`, `Approvals`, `Task Explorer`, and `Exceptions`.
+- The current visual theme is blue and is fully local to `apps/ops-console/src/styles.css`.
+
 ## Remaining Setup Focus
 
 - Temporal namespace and workflow registration
 - OPA data loading so policy can read the control-plane thresholds
 - NATS subjects and event naming conventions for approvals, payments, and reconciliation
 - JWT signing and delegated token validation for task-scoped authority
-- Ops console app bootstrapping and the first approval queue screen
 
 ## Recommended Build Order
 

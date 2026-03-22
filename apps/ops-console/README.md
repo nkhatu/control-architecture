@@ -1,17 +1,44 @@
 # Ops Console
 
-The operator console is where deterministic human control stays visible.
+The ops console is the operator-facing UI for approvals, task review, and exception handling.
 
-Initial PoC screens:
+Current PoC slice:
 
-- Approval queue for `awaiting_approval` tasks.
-- Task explorer with current lifecycle state and provenance trail.
-- Exception queue for `pending_reconcile` and `exception` cases.
-- Audit detail for policy decisions, capability calls, and delegated identities.
+- uses a top menu to move between overview, payment intake, approvals, task explorer, and exception review
+- reads control summary and snapshot metadata from `control-plane`
+- creates domestic payment tasks through `orchestrator-api`
+- keeps a local recent-task queue in the browser until a server-side queue endpoint exists
+- lets an operator load a task by id and inspect:
+  - current lifecycle state
+  - provenance summary
+  - state history
+  - artifacts
+  - delegated work records
+- lets an operator approve and resume an `awaiting_approval` task through `orchestrator-api`
+- highlights exception-oriented tasks such as `pending_reconcile` and `exception`
 
-Recommended stack for the PoC:
+The first console intentionally stays narrow and backend-aligned. It does not bypass policy or workflow controls, and it does not call release rails directly.
 
-- Next.js or React app.
-- Read-only by default.
-- Field-level masking for account data.
-- No direct release calls from the UI without policy-backed backend endpoints.
+## Local Run
+
+From the repo root:
+
+```bash
+cd apps/ops-console
+npm install
+npm run dev
+```
+
+The Vite dev server proxies API requests to:
+
+- `http://127.0.0.1:8000` for `orchestrator-api`
+- `http://127.0.0.1:8008` for `control-plane`
+
+Set `OPS_CONSOLE_PORT` if you want a port other than `3000`.
+
+## Local Build
+
+```bash
+cd apps/ops-console
+npm run build
+```

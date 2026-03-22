@@ -12,3 +12,5 @@ dist/
 build/
 coverage/
 *.log
+*.tsbuildinfo
+.tmp-*.db
