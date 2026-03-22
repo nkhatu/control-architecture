@@ -28,12 +28,13 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["memory_service", "orchestrator_api"]
+packages = ["memory_service", "orchestrator_api", "capability_gateway"]
 
 [tool.setuptools.package-dir]
 memory_service = "services/memory-service/src/memory_service"
 orchestrator_api = "apps/orchestrator-api/src/orchestrator_api"
+capability_gateway = "apps/capability-gateway/src/capability_gateway"
 
 [tool.pytest.ini_options]
 addopts = "-q"
-testpaths = ["services/memory-service/tests", "apps/orchestrator-api/tests"]
+testpaths = ["services/memory-service/tests", "apps/orchestrator-api/tests", "apps/capability-gateway/tests"]
