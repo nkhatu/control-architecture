@@ -29,7 +29,7 @@ Implementation addendum: [implementation-update-2026-03.md](docs/architecture/im
 
 Consolidated architecture v2: [control-platform-architecture-v2.md](docs/architecture/control-platform-architecture-v2.md)
 
-Word export: [control-platform-architecture-v2.docx](docs/architecture/control-platform-architecture-v2.docx)
+PDF export: [control-platform-architecture-v2.pdf](docs/architecture/control-platform-architecture-v2.pdf)
 
 ### Protocol-Mediated Architecture
 
