@@ -2,28 +2,36 @@
 
 The PoC should keep policy deterministic and outside the model.
 
-For the first iteration, this directory holds an OPA policy bundle and control-plane data that the orchestrator can call before:
+This service is the deterministic decision boundary the orchestrator calls before material actions.
 
-- approval submission
+Current PoC slice:
+
+- domestic payment intake
 - payment release
-- cancellation
-- rail changes
-- beneficiary changes
+- normalized decisions: `allow`, `deny`, `escalate`, `simulate`
+- control-plane thresholds loaded from `config/control-plane/default.yaml`
+- an OPA-aligned request shape for payment state, principal scopes, and request context
 
-Inputs to the decision request should include:
+The current endpoints are:
 
-- action
-- principal scopes
-- task state
-- amount
-- rail
-- beneficiary status
-- approval status
-- idempotency key presence
+- `POST /decisions/intake`
+- `POST /decisions/release`
+- `GET /health`
+- `GET /metadata`
 
-Outputs should be normalized to:
+The PoC still keeps the Rego bundle in this directory as the policy reference, but the running service currently evaluates the same decisions in Python so the rest of the stack can integrate against a real policy boundary now.
 
-- `allow`
-- `deny`
-- `escalate`
-- `simulate`
+## Local Run
+
+From the repo root:
+
+```bash
+uv sync --extra dev
+uv run uvicorn policy_service.main:app --reload --host 0.0.0.0 --port 8005
+```
+
+## Local Test
+
+```bash
+uv run pytest
+```

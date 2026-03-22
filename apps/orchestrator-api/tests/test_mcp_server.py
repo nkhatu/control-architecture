@@ -93,6 +93,13 @@ async def exercise_mcp_server(tmp_path: Path) -> None:
         },
         "CAPABILITY_GATEWAY_PORT",
     )
+    policy_process, policy_port = start_http_service(
+        "policy_service.main:app",
+        {
+            "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
+        },
+        "POLICY_SERVICE_PORT",
+    )
     workflow_process, workflow_port = start_http_service(
         "workflow_worker.main:app",
         {
@@ -108,6 +115,7 @@ async def exercise_mcp_server(tmp_path: Path) -> None:
             {
                 "ORCHESTRATOR_MCP_TRANSPORT": "stdio",
                 "MEMORY_SERVICE_BASE_URL": f"http://127.0.0.1:{memory_port}",
+                "POLICY_SERVICE_BASE_URL": f"http://127.0.0.1:{policy_port}",
                 "WORKFLOW_WORKER_BASE_URL": f"http://127.0.0.1:{workflow_port}",
                 "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
                 "CAPABILITY_REGISTRY_PATH": "config/registry/capabilities.yaml",
@@ -176,6 +184,7 @@ async def exercise_mcp_server(tmp_path: Path) -> None:
                 assert task_id in prompt_result.messages[0].content.text
     finally:
         stop_process(workflow_process)
+        stop_process(policy_process)
         stop_process(capability_process)
         stop_process(memory_process)
 

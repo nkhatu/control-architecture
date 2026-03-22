@@ -8,6 +8,7 @@ from mcp.server.fastmcp import FastMCP
 
 from .config import AppSettings, get_settings
 from .memory_client import MemoryServiceClient, MemoryServiceHttpClient
+from .policy_client import PolicyServiceClient, PolicyServiceHttpClient
 from .registry import load_registry_snapshot
 from .schemas import DomesticPaymentIntakeRequest, DomesticPaymentResumeRequest
 from .service import OrchestrationService
@@ -19,28 +20,44 @@ class McpRuntime:
     settings: AppSettings
     service: OrchestrationService
     memory_client: MemoryServiceClient
+    policy_client: PolicyServiceClient
     workflow_client: WorkflowWorkerClient
 
 
 def create_runtime(
     settings: AppSettings | None = None,
     memory_service_client: MemoryServiceClient | None = None,
+    policy_service_client: PolicyServiceClient | None = None,
     workflow_worker_client: WorkflowWorkerClient | None = None,
 ) -> McpRuntime:
     app_settings = settings or get_settings()
     memory_client = memory_service_client or MemoryServiceHttpClient(app_settings.memory_service_base_url)
+    policy_client = policy_service_client or PolicyServiceHttpClient(app_settings.policy_service_base_url)
     workflow_client = workflow_worker_client or WorkflowWorkerHttpClient(app_settings.workflow_worker_base_url)
     snapshot = load_registry_snapshot(app_settings)
-    service = OrchestrationService(snapshot, memory_client, workflow_client)
-    return McpRuntime(settings=app_settings, service=service, memory_client=memory_client, workflow_client=workflow_client)
+    service = OrchestrationService(
+        snapshot,
+        memory_client,
+        workflow_client,
+        policy_client,
+        app_name=app_settings.app_name,
+    )
+    return McpRuntime(
+        settings=app_settings,
+        service=service,
+        memory_client=memory_client,
+        policy_client=policy_client,
+        workflow_client=workflow_client,
+    )
 
 
 def create_mcp_server(
     settings: AppSettings | None = None,
     memory_service_client: MemoryServiceClient | None = None,
+    policy_service_client: PolicyServiceClient | None = None,
     workflow_worker_client: WorkflowWorkerClient | None = None,
 ) -> FastMCP:
-    runtime = create_runtime(settings, memory_service_client, workflow_worker_client)
+    runtime = create_runtime(settings, memory_service_client, policy_service_client, workflow_worker_client)
 
     mcp = FastMCP(
         name="Agentic Money Movement Orchestrator",
@@ -97,12 +114,14 @@ def create_mcp_server(
         approval_note: str | None = None,
         idempotency_key: str | None = None,
         release_mode: str = "execute",
+        principal_scopes: list[str] | None = None,
     ) -> dict[str, object]:
         request = DomesticPaymentResumeRequest(
             approved_by=approved_by,
             approval_note=approval_note,
             idempotency_key=idempotency_key,
             release_mode=release_mode,
+            principal_scopes=principal_scopes or ["release:domestic_payment"],
         )
         return runtime.service.resume_task(task_id, request).model_dump()
 

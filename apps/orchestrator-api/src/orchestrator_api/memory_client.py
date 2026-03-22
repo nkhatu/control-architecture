@@ -16,6 +16,9 @@ class MemoryServiceClient(Protocol):
     def get_task(self, task_id: str) -> dict[str, Any]:
         ...
 
+    def create_artifact(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        ...
+
     def close(self) -> None:
         ...
 
@@ -39,6 +42,15 @@ class MemoryServiceHttpClient:
             response.raise_for_status()
         except httpx.HTTPError as exc:
             raise MemoryServiceError(f"Failed to load task {task_id} from memory-service.") from exc
+
+        return response.json()
+
+    def create_artifact(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            response = self._client.post(f"/tasks/{task_id}/artifacts", json=payload)
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise MemoryServiceError(f"Failed to create artifact for task {task_id} in memory-service.") from exc
 
         return response.json()
 

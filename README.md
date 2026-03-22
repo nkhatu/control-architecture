@@ -6,7 +6,7 @@ The PoC is intentionally narrow:
 
 - One domestic payment workflow: draft -> validate -> approval -> release -> settlement pending.
 - One execution adapter: a mock domestic rail behind the capability gateway.
-- One deterministic policy path: OPA decides whether the action is allowed, denied, or escalated.
+- One deterministic policy path: `policy-service` decides whether the action is allowed, denied, or escalated using an OPA-aligned control model.
 - One durable workflow path: Temporal owns state transitions and replay.
 - One async transport: NATS handles events for approvals, release updates, and reconciliation signals.
 
@@ -39,7 +39,7 @@ Full architecture document: [Protocol-Mediated Agentic Money Movement Control Pl
 apps/
   ops-console/          operator UI for approvals, review, and investigations
   orchestrator-api/     intake API, registry lookups, policy checks, workflow kickoff, MCP server adapter
-  policy-service/       OPA bundle and policy-service notes
+  policy-service/       deterministic policy decision service and OPA-aligned policy bundle
   capability-gateway/   typed wrappers around mock payment rails
 services/
   workflow-worker/      Temporal workflows and activities
@@ -67,7 +67,7 @@ docs/
 
 1. `orchestrator-api` accepts a domestic payment task.
 2. It loads registries and current task context from `memory-service`.
-3. It calls OPA with explicit action, amount, rail, beneficiary status, and task-scoped scopes.
+3. It calls `policy-service` with explicit action, amount, rail, beneficiary status, and task-scoped scopes.
 4. If allowed, `workflow-worker` drives validation, approval wait states, release, and ambiguous-response holds.
 5. `capability-gateway` talks to a mock rail and emits structured events.
 6. `event-consumer` updates read models and audit projections.
@@ -78,6 +78,7 @@ The PoC currently includes:
 
 - `memory-service` as the durable task state and provenance boundary.
 - `orchestrator-api` as both a REST intake API and an MCP server adapter.
+- `policy-service` as the deterministic decision boundary for intake and release checks.
 - `workflow-worker` as the service that advances validation, approval wait states, and release.
 - delegated work records and protocol envelopes for compliance screening and approval routing.
 - MCP tools, resources, and a review prompt exposed through the orchestrator for controlled task creation and retrieval.

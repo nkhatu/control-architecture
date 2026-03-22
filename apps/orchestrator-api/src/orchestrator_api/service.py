@@ -1,20 +1,26 @@
 from __future__ import annotations
 
+import hashlib
+
 from .memory_client import MemoryServiceClient, MemoryServiceError
-from .policy import evaluate_intake_policy
+from .policy_client import PolicyServiceClient, PolicyServiceError
 from .registry import RegistrySnapshot
 from .schemas import (
     DomesticPaymentIntakeRequest,
     DomesticPaymentIntakeResponse,
     DomesticPaymentResumeRequest,
     DomesticPaymentResumeResponse,
+    PolicyDecisionResponse,
     WorkflowProgressResponse,
 )
 from .workflow_client import WorkflowWorkerClient, WorkflowWorkerError
 
 
 class OrchestrationServiceError(RuntimeError):
-    """Raised when the orchestrator cannot safely complete a request."""
+    def __init__(self, message: str, *, status_code: int = 502, error_class: str | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.error_class = error_class
 
 
 class OrchestrationService:
@@ -23,14 +29,19 @@ class OrchestrationService:
         snapshot: RegistrySnapshot,
         memory_client: MemoryServiceClient,
         workflow_client: WorkflowWorkerClient,
+        policy_client: PolicyServiceClient,
+        app_name: str = "orchestrator-api",
     ):
         self.snapshot = snapshot
         self.memory_client = memory_client
         self.workflow_client = workflow_client
+        self.policy_client = policy_client
+        self.app_name = app_name
 
     def metadata(
         self,
         memory_service_base_url: str,
+        policy_service_base_url: str,
         workflow_worker_base_url: str,
         app_name: str,
         app_env: str,
@@ -39,6 +50,7 @@ class OrchestrationService:
             "service": app_name,
             "environment": app_env,
             "memory_service_base_url": memory_service_base_url,
+            "policy_service_base_url": policy_service_base_url,
             "workflow_worker_base_url": workflow_worker_base_url,
             "capability_count": len(self.snapshot.capabilities),
             "agent_count": len(self.snapshot.agents),
@@ -66,13 +78,15 @@ class OrchestrationService:
         self,
         payload: DomesticPaymentIntakeRequest,
     ) -> DomesticPaymentIntakeResponse:
-        decision = evaluate_intake_policy(payload, self.snapshot.control_plane)
+        decision = self._evaluate_intake_policy(payload)
         if decision.decision == "deny":
-            raise OrchestrationServiceError(decision.reason)
+            raise OrchestrationServiceError(decision.reason, status_code=403, error_class="policy_denied")
 
         if self.snapshot.get_capability(decision.recommended_next_capability) is None:
             raise OrchestrationServiceError(
-                f"Required capability {decision.recommended_next_capability} is missing from the registry."
+                f"Required capability {decision.recommended_next_capability} is missing from the registry.",
+                status_code=500,
+                error_class="registry_error",
             )
 
         selected_agents = self.list_selected_agents()
@@ -88,7 +102,7 @@ class OrchestrationService:
                 }
             )
         except WorkflowWorkerError as exc:
-            raise OrchestrationServiceError(str(exc)) from exc
+            raise OrchestrationServiceError(str(exc), status_code=exc.status_code, error_class=exc.error_class) from exc
 
         return DomesticPaymentIntakeResponse(
             task=workflow_result["task"],
@@ -104,9 +118,49 @@ class OrchestrationService:
         payload: DomesticPaymentResumeRequest,
     ) -> DomesticPaymentResumeResponse:
         try:
-            workflow_result = self.workflow_client.resume_workflow(task_id, payload.model_dump(mode="json"))
+            task = self.memory_client.get_task(task_id)
+        except MemoryServiceError as exc:
+            raise OrchestrationServiceError(str(exc), status_code=502, error_class="memory_error") from exc
+
+        idempotency_key = payload.idempotency_key or self._default_idempotency_key(task_id)
+        decision = self._evaluate_release_policy(task, payload, idempotency_key)
+        if decision.decision == "deny":
+            raise OrchestrationServiceError(decision.reason, status_code=403, error_class="policy_denied")
+        if decision.decision == "escalate":
+            raise OrchestrationServiceError(
+                decision.reason,
+                status_code=409,
+                error_class="policy_escalation_required",
+            )
+        if decision.decision == "simulate":
+            raise OrchestrationServiceError(
+                decision.reason,
+                status_code=409,
+                error_class="policy_simulation_only",
+            )
+
+        try:
+            self.memory_client.create_artifact(
+                task_id,
+                {
+                    "artifact_type": "release_policy_decision",
+                    "content": decision.model_dump(mode="json"),
+                    "created_by": self.app_name,
+                },
+            )
+            workflow_result = self.workflow_client.resume_workflow(
+                task_id,
+                {
+                    "approved_by": payload.approved_by,
+                    "approval_note": payload.approval_note,
+                    "idempotency_key": idempotency_key,
+                    "release_mode": payload.release_mode,
+                },
+            )
+        except MemoryServiceError as exc:
+            raise OrchestrationServiceError(str(exc), status_code=502, error_class="memory_error") from exc
         except WorkflowWorkerError as exc:
-            raise OrchestrationServiceError(str(exc)) from exc
+            raise OrchestrationServiceError(str(exc), status_code=exc.status_code, error_class=exc.error_class) from exc
 
         return DomesticPaymentResumeResponse(
             task=workflow_result["task"],
@@ -118,7 +172,7 @@ class OrchestrationService:
         try:
             return self.memory_client.get_task(task_id)
         except MemoryServiceError as exc:
-            raise OrchestrationServiceError(str(exc)) from exc
+            raise OrchestrationServiceError(str(exc), status_code=502, error_class="memory_error") from exc
 
     def registry_summary(self) -> dict[str, object]:
         return {
@@ -126,3 +180,64 @@ class OrchestrationService:
             "agents": [item.model_dump() for item in self.snapshot.agents],
             "control_plane": self.snapshot.control_plane,
         }
+
+    def _evaluate_intake_policy(self, payload: DomesticPaymentIntakeRequest) -> PolicyDecisionResponse:
+        try:
+            decision = self.policy_client.evaluate_intake(
+                {
+                    "customer_id": payload.customer_id,
+                    "rail": payload.rail,
+                    "amount_usd": payload.amount_usd,
+                    "trace_id": payload.trace_id,
+                    "principal": {
+                        "actor_id": payload.initiated_by,
+                        "scopes": payload.principal_scopes,
+                    },
+                }
+            )
+        except PolicyServiceError as exc:
+            raise OrchestrationServiceError(str(exc), status_code=exc.status_code, error_class=exc.error_class) from exc
+
+        return PolicyDecisionResponse.model_validate(decision)
+
+    def _evaluate_release_policy(
+        self,
+        task: dict[str, object],
+        payload: DomesticPaymentResumeRequest,
+        idempotency_key: str,
+    ) -> PolicyDecisionResponse:
+        try:
+            decision = self.policy_client.evaluate_release(
+                {
+                    "payment": {
+                        "task_id": task["task_id"],
+                        "payment_id": task["payment_id"],
+                        "amount_usd": task["amount_usd"],
+                        "rail": task["rail"],
+                        "status": task["status"],
+                        "approval_status": task["approval_status"],
+                        "beneficiary_status": task["beneficiary_status"],
+                        "task_metadata": task.get("task_metadata", {}),
+                    },
+                    "principal": {
+                        "actor_id": payload.approved_by,
+                        "scopes": payload.principal_scopes,
+                    },
+                    "request": {
+                        "approved_by": payload.approved_by,
+                        "approval_note": payload.approval_note,
+                        "approval_outcome": "approved",
+                        "idempotency_key": idempotency_key,
+                        "release_mode": payload.release_mode,
+                    },
+                    "trace_id": task.get("provenance", {}).get("trace_id"),
+                }
+            )
+        except PolicyServiceError as exc:
+            raise OrchestrationServiceError(str(exc), status_code=exc.status_code, error_class=exc.error_class) from exc
+
+        return PolicyDecisionResponse.model_validate(decision)
+
+    def _default_idempotency_key(self, task_id: str) -> str:
+        digest = hashlib.sha256(task_id.encode("utf-8")).hexdigest()[:16]
+        return f"release-{digest}"

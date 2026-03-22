@@ -9,6 +9,8 @@ from memory_service.config import AppSettings as MemorySettings
 from memory_service.main import create_app as create_memory_app
 from orchestrator_api.config import AppSettings as OrchestratorSettings
 from orchestrator_api.main import create_app as create_orchestrator_app
+from policy_service.config import AppSettings as PolicyServiceSettings
+from policy_service.main import create_app as create_policy_service_app
 from workflow_worker.config import AppSettings as WorkflowWorkerSettings
 from workflow_worker.main import create_app as create_workflow_worker_app
 
@@ -92,6 +94,24 @@ class InProcessWorkflowWorkerClient:
         return None
 
 
+class InProcessPolicyServiceClient:
+    def __init__(self, client: TestClient):
+        self._client = client
+
+    def evaluate_intake(self, payload: dict) -> dict:
+        response = self._client.post("/decisions/intake", json=payload)
+        response.raise_for_status()
+        return response.json()
+
+    def evaluate_release(self, payload: dict) -> dict:
+        response = self._client.post("/decisions/release", json=payload)
+        response.raise_for_status()
+        return response.json()
+
+    def close(self) -> None:
+        return None
+
+
 @contextmanager
 def build_test_client(tmp_path: Path):
     database_path = tmp_path / "memory-service.db"
@@ -107,6 +127,8 @@ def build_test_client(tmp_path: Path):
         capability_registry_path="config/registry/capabilities.yaml",
     )
     gateway_app = create_capability_gateway_app(gateway_settings)
+    policy_settings = PolicyServiceSettings(control_plane_config_path="config/control-plane/default.yaml")
+    policy_app = create_policy_service_app(policy_settings)
 
     worker_settings = WorkflowWorkerSettings(
         control_plane_config_path="config/control-plane/default.yaml",
@@ -120,6 +142,7 @@ def build_test_client(tmp_path: Path):
     with ExitStack() as stack:
         memory_client = stack.enter_context(TestClient(memory_app))
         gateway_client = stack.enter_context(TestClient(gateway_app))
+        policy_client = stack.enter_context(TestClient(policy_app))
         workflow_worker_app = create_workflow_worker_app(
             worker_settings,
             memory_service_client=InProcessMemoryServiceClient(memory_client),
@@ -129,6 +152,7 @@ def build_test_client(tmp_path: Path):
         orchestrator_app = create_orchestrator_app(
             orchestrator_settings,
             memory_service_client=InProcessMemoryServiceClient(memory_client),
+            policy_service_client=InProcessPolicyServiceClient(policy_client),
             workflow_worker_client=InProcessWorkflowWorkerClient(workflow_worker_client),
         )
         orchestrator_client = stack.enter_context(TestClient(orchestrator_app))
@@ -188,7 +212,7 @@ def test_intake_rejects_unsupported_rail(tmp_path: Path) -> None:
         )
 
     assert response.status_code == 403
-    assert "outside the configured PoC rail scope" in response.json()["detail"]
+    assert "outside the configured PoC rail scope" in response.json()["detail"]["message"]
 
 
 def test_get_task_proxies_to_memory_service(tmp_path: Path) -> None:
@@ -246,4 +270,36 @@ def test_resume_endpoint_releases_payment_after_approval(tmp_path: Path) -> None
     assert resume_response.json()["task"]["approval_status"] == "approved"
     assert resume_response.json()["workflow"]["workflow_state"] == "release_submitted"
     assert resume_response.json()["release_result"]["mock_rail_outcome"] == "success"
+    assert any(item["artifact_type"] == "release_policy_decision" for item in resume_response.json()["task"]["artifacts"])
     assert any(item["delegated_action"] == "approval_routing" and item["status"] == "completed" for item in resume_response.json()["task"]["delegations"])
+
+
+def test_resume_endpoint_denies_release_without_scope(tmp_path: Path) -> None:
+    with build_test_client(tmp_path) as client:
+        create_response = client.post(
+            "/tasks/domestic-payments",
+            json={
+                "customer_id": "cust_456",
+                "source_account_id": "acct_009",
+                "beneficiary_id": "ben_008",
+                "amount_usd": 2500,
+                "rail": "ach",
+                "requested_execution_date": "2026-03-24",
+                "initiated_by": "user.neil",
+            },
+        )
+        task_id = create_response.json()["task"]["task_id"]
+
+        resume_response = client.post(
+            f"/tasks/{task_id}/resume",
+            json={
+                "approved_by": "user.ops_approver",
+                "approval_note": "Approved to release.",
+                "release_mode": "execute",
+                "principal_scopes": [],
+            },
+        )
+
+    assert resume_response.status_code == 403
+    assert resume_response.json()["detail"]["error_class"] == "policy_denied"
+    assert "missing required scope" in resume_response.json()["detail"]["message"]

@@ -57,6 +57,7 @@ class DomesticPaymentResumeRequest(BaseModel):
     approval_note: str | None = None
     idempotency_key: str | None = None
     release_mode: Literal["dry_run", "execute"] = "execute"
+    principal_scopes: list[str] = Field(default_factory=lambda: ["release:domestic_payment"])
 
 
 class DomesticPaymentResumeResponse(BaseModel):
