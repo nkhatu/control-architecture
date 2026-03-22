@@ -2,6 +2,8 @@
 
 This service owns the current operational task snapshot for the PoC.
 
+It is also the write-side source for task lifecycle outbox events. Task creation and task state changes are written with an outbox record in the same transaction so provenance projection does not depend on dual writes.
+
 It stores:
 
 - task identity and payment identity
@@ -23,6 +25,18 @@ It does not own:
 - `POST /tasks`
 - `GET /tasks/{task_id}`
 - `PATCH /tasks/{task_id}/state`
+- `POST /outbox/claim`
+- `POST /outbox/{event_id}/complete`
+- `POST /outbox/{event_id}/fail`
+
+## Outbox Events
+
+The current service emits:
+
+- `task.lifecycle.created.v1`
+- `task.lifecycle.state_changed.v1`
+
+`event-consumer` claims these events and projects them into `provenance-service`.
 
 ## Local Run
 

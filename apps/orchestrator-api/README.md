@@ -35,6 +35,7 @@ Current PoC slice:
 - starts and resumes the domestic payment workflow through `workflow-worker`
 - passes delegated-agent context into the workflow for compliance screening and approval routing
 - reads merged task detail from `context-memory-service` and `provenance-service`
+- writes task creates and state changes through `context-memory-service`, then triggers `event-consumer` to project provenance
 - writes `release_policy_decision` artifacts before release resumes
 - exposes `GET /tasks/{task_id}` and `POST /tasks/{task_id}/resume`
 - exposes an MCP server adapter with tools, resources, and a review prompt

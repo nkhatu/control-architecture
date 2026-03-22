@@ -32,7 +32,8 @@ Current PoC slice:
 - starts the domestic payment workflow after orchestrator intake
 - creates the payment instruction through `capability-gateway`
 - writes the current task snapshot to `context-memory-service`
-- writes state transitions, artifacts, and delegated work records to `provenance-service`
+- relies on `event-consumer` to project task creation and task state changes into `provenance-service`
+- writes artifacts and delegated work records directly to `provenance-service`
 - delegates beneficiary validation to `agent.compliance_screening` with a bounded request envelope
 - delegates approval routing to `agent.approval_router` and leaves a pending approval delegation until resume
 - resumes after approval and drives release to `settlement_pending`, `pending_reconcile`, or `failed`

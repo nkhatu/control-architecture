@@ -31,6 +31,7 @@ dev = [
 packages = [
   "context_memory_service",
   "provenance_service",
+  "event_consumer",
   "orchestrator_api",
   "capability_gateway",
   "workflow_worker",
@@ -40,6 +41,7 @@ packages = [
 [tool.setuptools.package-dir]
 context_memory_service = "services/context-memory-service/src/context_memory_service"
 provenance_service = "services/provenance-service/src/provenance_service"
+event_consumer = "services/event-consumer/src/event_consumer"
 orchestrator_api = "apps/orchestrator-api/src/orchestrator_api"
 capability_gateway = "apps/capability-gateway/src/capability_gateway"
 workflow_worker = "services/workflow-worker/src/workflow_worker"
@@ -50,6 +52,7 @@ addopts = "-q"
 testpaths = [
   "services/context-memory-service/tests",
   "services/provenance-service/tests",
+  "services/event-consumer/tests",
   "apps/orchestrator-api/tests",
   "apps/capability-gateway/tests",
   "services/workflow-worker/tests",

@@ -23,6 +23,7 @@ def create_app(
     active_memory_client = memory_service_client or MemoryServiceHttpClient(
         app_settings.context_memory_service_base_url,
         app_settings.provenance_service_base_url,
+        app_settings.event_consumer_base_url,
     )
     active_capability_client = capability_gateway_client or CapabilityGatewayHttpClient(
         app_settings.capability_gateway_base_url

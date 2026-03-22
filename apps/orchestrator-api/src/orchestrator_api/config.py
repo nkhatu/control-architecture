@@ -38,6 +38,10 @@ class AppSettings(BaseSettings):
         default="http://localhost:8006",
         validation_alias="PROVENANCE_SERVICE_BASE_URL",
     )
+    event_consumer_base_url: str = Field(
+        default="http://localhost:8007",
+        validation_alias="EVENT_CONSUMER_BASE_URL",
+    )
     policy_service_base_url: str = Field(
         default="http://localhost:8005",
         validation_alias="POLICY_SERVICE_BASE_URL",

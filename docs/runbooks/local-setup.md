@@ -34,9 +34,19 @@ uv sync --extra dev
 ```bash
 uv run uvicorn context_memory_service.main:app --reload --host 0.0.0.0 --port 8002
 uv run uvicorn provenance_service.main:app --reload --host 0.0.0.0 --port 8006
+uv run uvicorn event_consumer.main:app --reload --host 0.0.0.0 --port 8007
 ```
 
-4. Run tests:
+4. Start the coordinating services as needed:
+
+```bash
+uv run uvicorn policy_service.main:app --reload --host 0.0.0.0 --port 8005
+uv run uvicorn capability_gateway.main:app --reload --host 0.0.0.0 --port 8001
+uv run uvicorn workflow_worker.main:app --reload --host 0.0.0.0 --port 8004
+uv run uvicorn orchestrator_api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+5. Run tests:
 
 ```bash
 uv run pytest
@@ -57,8 +67,9 @@ uv run pytest
 
 1. `context-memory-service`
 2. `provenance-service`
-3. `policy-service` integration
-4. `capability-gateway`
-5. `workflow-worker`
-6. `orchestrator-api`
-7. `ops-console`
+3. `event-consumer`
+4. `policy-service`
+5. `capability-gateway`
+6. `workflow-worker`
+7. `orchestrator-api`
+8. `ops-console`

@@ -20,6 +20,10 @@ class ProvenanceRepository:
         self.session = session
 
     def create_task_provenance(self, task_id: str, payload: ProvenanceRecordCreateRequest) -> TaskProvenance:
+        existing = self.get_task_provenance(task_id)
+        if existing is not None:
+            return existing
+
         record = TaskProvenance(
             task_id=task_id,
             initiated_by=payload.initiated_by,
@@ -44,12 +48,18 @@ class ProvenanceRepository:
         return self.session.scalars(statement).unique().one_or_none()
 
     def add_state_transition(self, task_id: str, payload: TaskStateTransitionCreateRequest) -> TaskStateTransition | None:
+        if payload.source_event_id:
+            existing = self.get_state_transition_by_source_event(payload.source_event_id)
+            if existing is not None:
+                return existing
+
         task = self.get_task_provenance(task_id)
         if task is None:
             return None
 
         transition = TaskStateTransition(
             task_id=task_id,
+            source_event_id=payload.source_event_id,
             from_status=payload.from_status,
             to_status=payload.to_status,
             changed_by=payload.changed_by,
@@ -62,6 +72,10 @@ class ProvenanceRepository:
         self.session.commit()
         self.session.refresh(transition)
         return transition
+
+    def get_state_transition_by_source_event(self, source_event_id: str) -> TaskStateTransition | None:
+        statement = select(TaskStateTransition).where(TaskStateTransition.source_event_id == source_event_id)
+        return self.session.scalars(statement).one_or_none()
 
     def add_artifact(self, task_id: str, payload: ArtifactCreateRequest) -> Artifact | None:
         task = self.get_task_provenance(task_id)

@@ -25,6 +25,7 @@ def test_provenance_service_records_history_artifacts_and_delegations(tmp_path) 
         transition_response = client.post(
             "/tasks/task_001/state-transitions",
             json={
+                "source_event_id": "evt_001",
                 "from_status": None,
                 "to_status": "received",
                 "changed_by": "user.neil",
@@ -32,6 +33,18 @@ def test_provenance_service_records_history_artifacts_and_delegations(tmp_path) 
             },
         )
         assert transition_response.status_code == 201
+
+        duplicate_transition = client.post(
+            "/tasks/task_001/state-transitions",
+            json={
+                "source_event_id": "evt_001",
+                "from_status": None,
+                "to_status": "received",
+                "changed_by": "user.neil",
+                "reason": "task created",
+            },
+        )
+        assert duplicate_transition.status_code == 201
 
         artifact_response = client.post(
             "/tasks/task_001/artifacts",

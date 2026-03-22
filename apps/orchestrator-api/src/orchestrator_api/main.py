@@ -32,6 +32,7 @@ def create_app(
     active_memory_client = memory_service_client or MemoryServiceHttpClient(
         app_settings.context_memory_service_base_url,
         app_settings.provenance_service_base_url,
+        app_settings.event_consumer_base_url,
     )
     active_policy_client = policy_service_client or PolicyServiceHttpClient(app_settings.policy_service_base_url)
     active_workflow_client = workflow_worker_client or WorkflowWorkerHttpClient(app_settings.workflow_worker_base_url)

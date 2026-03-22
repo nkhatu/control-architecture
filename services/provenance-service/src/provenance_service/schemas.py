@@ -18,6 +18,7 @@ class ProvenanceRecordCreateRequest(BaseModel):
 
 
 class TaskStateTransitionCreateRequest(BaseModel):
+    source_event_id: str | None = None
     from_status: str | None = None
     to_status: str
     changed_by: str
@@ -65,6 +66,7 @@ class TaskStateHistoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    source_event_id: str | None = None
     from_status: str | None = None
     to_status: str
     changed_by: str

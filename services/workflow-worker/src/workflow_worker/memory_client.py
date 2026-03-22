@@ -35,37 +35,26 @@ class MemoryServiceClient(Protocol):
 
 
 class MemoryServiceHttpClient:
-    def __init__(self, context_base_url: str, provenance_base_url: str, timeout_seconds: float = 5.0):
+    def __init__(
+        self,
+        context_base_url: str,
+        provenance_base_url: str,
+        event_consumer_base_url: str,
+        timeout_seconds: float = 5.0,
+    ):
         self._context_client = httpx.Client(base_url=context_base_url, timeout=timeout_seconds)
         self._provenance_client = httpx.Client(base_url=provenance_base_url, timeout=timeout_seconds)
+        self._event_consumer_client = httpx.Client(base_url=event_consumer_base_url, timeout=timeout_seconds)
 
     def create_task(self, payload: dict[str, Any]) -> dict[str, Any]:
         context_task = self._context_request(
             "post",
             "/tasks",
-            json={key: value for key, value in payload.items() if key != "provenance"},
+            json=payload,
             failure_message="Failed to create task in context-memory-service.",
         )
-        provenance = payload.get("provenance", {})
-        task_id = context_task["task_id"]
-        self._provenance_request(
-            "post",
-            f"/tasks/{task_id}/provenance",
-            json=provenance,
-            failure_message=f"Failed to create provenance record for task {task_id}.",
-        )
-        self._provenance_request(
-            "post",
-            f"/tasks/{task_id}/state-transitions",
-            json={
-                "from_status": None,
-                "to_status": context_task["status"],
-                "changed_by": provenance.get("initiated_by", "system"),
-                "reason": "task created",
-            },
-            failure_message=f"Failed to create initial state transition for task {task_id}.",
-        )
-        return self.get_task(task_id)
+        self._dispatch_consistency()
+        return self.get_task(context_task["task_id"])
 
     def get_task(self, task_id: str) -> dict[str, Any]:
         context_task = self._context_request(
@@ -73,7 +62,7 @@ class MemoryServiceHttpClient:
             f"/tasks/{task_id}",
             failure_message=f"Failed to load task {task_id} from context-memory-service.",
         )
-        records = self._provenance_request(
+        records = self._provenance_request_allow_missing(
             "get",
             f"/tasks/{task_id}/records",
             failure_message=f"Failed to load provenance for task {task_id}.",
@@ -81,32 +70,13 @@ class MemoryServiceHttpClient:
         return self._merge_task_detail(context_task, records)
 
     def patch_task_state(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        current_task = self._context_request(
-            "get",
-            f"/tasks/{task_id}",
-            failure_message=f"Failed to load task {task_id} from context-memory-service.",
-        )
         self._context_request(
             "patch",
             f"/tasks/{task_id}/state",
-            json={
-                "status": payload["status"],
-                "approval_status": payload.get("approval_status"),
-                "beneficiary_status": payload.get("beneficiary_status"),
-            },
+            json=payload,
             failure_message=f"Failed to update task {task_id} state in context-memory-service.",
         )
-        self._provenance_request(
-            "post",
-            f"/tasks/{task_id}/state-transitions",
-            json={
-                "from_status": current_task["status"],
-                "to_status": payload["status"],
-                "changed_by": payload["changed_by"],
-                "reason": payload.get("reason"),
-            },
-            failure_message=f"Failed to record state transition for task {task_id}.",
-        )
+        self._dispatch_consistency()
         return self.get_task(task_id)
 
     def create_artifact(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -136,6 +106,7 @@ class MemoryServiceHttpClient:
     def close(self) -> None:
         self._context_client.close()
         self._provenance_client.close()
+        self._event_consumer_client.close()
 
     def _context_request(
         self,
@@ -173,6 +144,40 @@ class MemoryServiceHttpClient:
 
         return response.json()
 
+    def _provenance_request_allow_missing(
+        self,
+        method: str,
+        path: str,
+        *,
+        json: dict[str, Any] | None = None,
+        failure_message: str,
+    ) -> dict[str, Any]:
+        try:
+            response = self._provenance_client.request(method, path, json=json)
+        except httpx.HTTPError as exc:
+            raise MemoryServiceError(failure_message) from exc
+
+        if response.status_code == 404:
+            return {
+                "provenance": {
+                    "task_id": path.split("/")[2],
+                    "initiated_by": "",
+                    "last_updated_by": "",
+                    "policy_context_id": None,
+                    "trace_id": None,
+                    "created_at": None,
+                    "updated_at": None,
+                },
+                "state_history": [],
+                "artifacts": [],
+                "delegations": [],
+            }
+
+        if response.is_error:
+            raise MemoryServiceError(self._detail_from_response(response, failure_message), status_code=response.status_code)
+
+        return response.json()
+
     def _merge_task_detail(self, context_task: dict[str, Any], records: dict[str, Any]) -> dict[str, Any]:
         return {
             **context_task,
@@ -181,6 +186,15 @@ class MemoryServiceHttpClient:
             "artifacts": records["artifacts"],
             "delegations": records["delegations"],
         }
+
+    def _dispatch_consistency(self) -> None:
+        try:
+            response = self._event_consumer_client.post("/dispatch/run-once", json={"limit": 100, "lease_seconds": 30})
+        except httpx.HTTPError as exc:
+            raise MemoryServiceError("Failed to dispatch context outbox events through event-consumer.") from exc
+
+        if response.is_error:
+            raise MemoryServiceError(self._detail_from_response(response, "Failed to dispatch context outbox events through event-consumer."), status_code=response.status_code)
 
     def _detail_from_response(self, response: httpx.Response, fallback: str) -> str:
         try:

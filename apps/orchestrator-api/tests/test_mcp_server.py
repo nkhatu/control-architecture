@@ -109,12 +109,22 @@ async def exercise_mcp_server(tmp_path: Path) -> None:
         },
         "POLICY_SERVICE_PORT",
     )
+    event_consumer_process, event_consumer_port = start_http_service(
+        "event_consumer.main:app",
+        {
+            "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
+            "CONTEXT_MEMORY_SERVICE_BASE_URL": f"http://127.0.0.1:{context_port}",
+            "PROVENANCE_SERVICE_BASE_URL": f"http://127.0.0.1:{provenance_port}",
+        },
+        "EVENT_CONSUMER_PORT",
+    )
     workflow_process, workflow_port = start_http_service(
         "workflow_worker.main:app",
         {
             "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
             "CONTEXT_MEMORY_SERVICE_BASE_URL": f"http://127.0.0.1:{context_port}",
             "PROVENANCE_SERVICE_BASE_URL": f"http://127.0.0.1:{provenance_port}",
+            "EVENT_CONSUMER_BASE_URL": f"http://127.0.0.1:{event_consumer_port}",
             "CAPABILITY_GATEWAY_BASE_URL": f"http://127.0.0.1:{capability_port}",
         },
         "WORKFLOW_WORKER_PORT",
@@ -126,6 +136,7 @@ async def exercise_mcp_server(tmp_path: Path) -> None:
                 "ORCHESTRATOR_MCP_TRANSPORT": "stdio",
                 "CONTEXT_MEMORY_SERVICE_BASE_URL": f"http://127.0.0.1:{context_port}",
                 "PROVENANCE_SERVICE_BASE_URL": f"http://127.0.0.1:{provenance_port}",
+                "EVENT_CONSUMER_BASE_URL": f"http://127.0.0.1:{event_consumer_port}",
                 "POLICY_SERVICE_BASE_URL": f"http://127.0.0.1:{policy_port}",
                 "WORKFLOW_WORKER_BASE_URL": f"http://127.0.0.1:{workflow_port}",
                 "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
@@ -195,6 +206,7 @@ async def exercise_mcp_server(tmp_path: Path) -> None:
                 assert task_id in prompt_result.messages[0].content.text
     finally:
         stop_process(workflow_process)
+        stop_process(event_consumer_process)
         stop_process(policy_process)
         stop_process(capability_process)
         stop_process(provenance_process)

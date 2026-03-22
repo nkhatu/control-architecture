@@ -7,8 +7,8 @@ The PoC is intentionally narrow:
 - One domestic payment workflow: draft -> validate -> approval -> release -> settlement pending.
 - One execution adapter: a mock domestic rail behind the capability gateway.
 - One deterministic policy path: `policy-service` decides whether the action is allowed, denied, or escalated using an OPA-aligned control model.
-- One durable workflow path: Temporal owns state transitions and replay.
-- One async transport: NATS handles events for approvals, release updates, and reconciliation signals.
+- One split state boundary: `context-memory-service` owns the current task snapshot while `provenance-service` owns append-only evidence.
+- One event-driven consistency path: `context-memory-service` emits transactional outbox events and `event-consumer` projects them into `provenance-service`.
 
 ## Why this shape
 
@@ -67,11 +67,12 @@ docs/
 ## PoC Flow
 
 1. `orchestrator-api` accepts a domestic payment task.
-2. It loads current task context from `context-memory-service` and provenance records from `provenance-service`.
-3. It calls `policy-service` with explicit action, amount, rail, beneficiary status, and task-scoped scopes.
-4. If allowed, `workflow-worker` drives validation, approval wait states, release, and ambiguous-response holds.
-5. `capability-gateway` talks to a mock rail and emits structured events.
-6. `event-consumer` updates read models and audit projections.
+2. `context-memory-service` persists the current task snapshot and writes an outbox event in the same transaction.
+3. `event-consumer` claims the outbox event and projects it into `provenance-service` with idempotent replay protection.
+4. `orchestrator-api` and `workflow-worker` read merged task detail from `context-memory-service` and `provenance-service`.
+5. `policy-service` evaluates explicit intake and release decisions.
+6. If allowed, `workflow-worker` drives validation, approval wait states, release, and ambiguous-response holds.
+7. `capability-gateway` talks to a mock rail and returns typed release outcomes.
 
 ## Current Implemented Slice
 
@@ -79,6 +80,8 @@ The PoC currently includes:
 
 - `context-memory-service` as the durable task snapshot boundary.
 - `provenance-service` as the append-only provenance and delegation boundary.
+- a transactional outbox in `context-memory-service` for task create and state-change events.
+- `event-consumer` as the projection service that reconciles context into provenance.
 - `orchestrator-api` as both a REST intake API and an MCP server adapter.
 - `policy-service` as the deterministic decision boundary for intake and release checks.
 - `workflow-worker` as the service that advances validation, approval wait states, and release.

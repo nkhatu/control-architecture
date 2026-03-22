@@ -46,6 +46,7 @@ class TaskStateTransition(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     task_id: Mapped[str] = mapped_column(ForeignKey("task_provenance.task_id"), index=True)
+    source_event_id: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True, index=True)
     from_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
     to_status: Mapped[str] = mapped_column(String(32))
     changed_by: Mapped[str] = mapped_column(String(128))

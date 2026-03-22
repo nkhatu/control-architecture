@@ -18,14 +18,10 @@ class AppSettings(BaseSettings):
         populate_by_name=True,
     )
 
-    app_name: str = "workflow-worker"
+    app_name: str = "event-consumer"
     app_env: str = "local"
     host: str = "0.0.0.0"
-    port: int = Field(default=8004, validation_alias="WORKFLOW_WORKER_PORT")
-    control_plane_config_path: str = Field(
-        default="config/control-plane/default.yaml",
-        validation_alias="CONTROL_PLANE_CONFIG_PATH",
-    )
+    port: int = Field(default=8007, validation_alias="EVENT_CONSUMER_PORT")
     context_memory_service_base_url: str = Field(
         default="http://localhost:8002",
         validation_alias="CONTEXT_MEMORY_SERVICE_BASE_URL",
@@ -34,13 +30,9 @@ class AppSettings(BaseSettings):
         default="http://localhost:8006",
         validation_alias="PROVENANCE_SERVICE_BASE_URL",
     )
-    event_consumer_base_url: str = Field(
-        default="http://localhost:8007",
-        validation_alias="EVENT_CONSUMER_BASE_URL",
-    )
-    capability_gateway_base_url: str = Field(
-        default="http://localhost:8001",
-        validation_alias="CAPABILITY_GATEWAY_BASE_URL",
+    control_plane_config_path: str = Field(
+        default="config/control-plane/default.yaml",
+        validation_alias="CONTROL_PLANE_CONFIG_PATH",
     )
 
     def resolve_path(self, raw_path: str) -> Path:

@@ -20,6 +20,10 @@ def test_context_service_creates_and_updates_task(tmp_path) -> None:
                 "rail": "ach",
                 "amount_usd": 2500,
                 "task_metadata": {"workflow_id": "wf_task_001"},
+                "provenance": {
+                    "initiated_by": "user.neil",
+                    "trace_id": "tr_001",
+                },
             },
         )
         assert create_response.status_code == 201
@@ -31,6 +35,8 @@ def test_context_service_creates_and_updates_task(tmp_path) -> None:
                 "status": "awaiting_approval",
                 "approval_status": "pending",
                 "beneficiary_status": "approved",
+                "changed_by": "workflow-worker",
+                "reason": "Validation completed.",
             },
         )
         assert patch_response.status_code == 200
@@ -40,3 +46,7 @@ def test_context_service_creates_and_updates_task(tmp_path) -> None:
         get_response = client.get(f"/tasks/{task_id}")
         assert get_response.status_code == 200
         assert get_response.json()["task_id"] == task_id
+
+        claim_response = client.post("/outbox/claim", json={"limit": 10, "lease_seconds": 30})
+        assert claim_response.status_code == 200
+        assert len(claim_response.json()["events"]) == 2

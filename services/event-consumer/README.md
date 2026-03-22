@@ -1,17 +1,29 @@
 # Event Consumer
 
-This service handles asynchronous messages from the workflow and capability layers.
+This service projects context outbox events into provenance records.
 
-Initial subscriptions:
+Current responsibilities:
 
-- `payments.events`
-- `policy.decisions`
-- `approvals.events`
-- `reconciliation.events`
+- claim lifecycle outbox events from `context-memory-service`
+- create provenance records in `provenance-service`
+- append state transitions with idempotent replay protection
+- mark outbox events complete or failed
+- provide a simple `run-once` dispatch endpoint for local PoC coordination
 
-Initial responsibilities:
+Current supported event types:
 
-- project workflow events into a task read model
-- update audit timelines
-- detect stale or conflicting states
-- trigger manual-review records when ambiguous downstream outcomes appear
+- `task.lifecycle.created.v1`
+- `task.lifecycle.state_changed.v1`
+
+## Initial API Surface
+
+- `GET /health`
+- `GET /metadata`
+- `POST /dispatch/run-once`
+
+## Local Run
+
+```bash
+uv sync --extra dev
+uv run uvicorn event_consumer.main:app --reload --host 0.0.0.0 --port 8007
+```
