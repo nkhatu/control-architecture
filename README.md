@@ -78,6 +78,7 @@ The PoC currently includes:
 
 - `memory-service` as the durable task state and provenance boundary.
 - `orchestrator-api` as both a REST intake API and an MCP server adapter.
+- `workflow-worker` as the service that advances validation, approval wait states, and release.
 - MCP tools, resources, and a review prompt exposed through the orchestrator for controlled task creation and retrieval.
 
 For service-level run commands and MCP details, see [apps/orchestrator-api/README.md](/Users/enkay/Documents/Scripts/Control%20Architecture/apps/orchestrator-api/README.md).

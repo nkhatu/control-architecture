@@ -33,6 +33,10 @@ class AppSettings(BaseSettings):
         default="http://localhost:8002",
         validation_alias="MEMORY_SERVICE_BASE_URL",
     )
+    workflow_worker_base_url: str = Field(
+        default="http://localhost:8004",
+        validation_alias="WORKFLOW_WORKER_BASE_URL",
+    )
     control_plane_config_path: str = Field(
         default="config/control-plane/default.yaml",
         validation_alias="CONTROL_PLANE_CONFIG_PATH",

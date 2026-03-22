@@ -38,26 +38,16 @@ def wait_for_http(url: str, timeout_seconds: float = 10.0) -> None:
     raise RuntimeError(f"Timed out waiting for {url}") from last_error
 
 
-def start_memory_service(tmp_path: Path) -> tuple[subprocess.Popen[str], int]:
+def start_http_service(module_name: str, env: dict[str, str], port_env_var: str) -> tuple[subprocess.Popen[str], int]:
     port = find_free_port()
-    database_path = tmp_path / "mcp-memory-service.db"
-
-    env = os.environ.copy()
-    env.update(
-        {
-            "DATABASE_URL": f"sqlite+pysqlite:///{database_path}",
-            "AUTO_CREATE_SCHEMA": "true",
-            "MEMORY_SERVICE_PORT": str(port),
-            "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
-        }
-    )
+    env = {**os.environ.copy(), **env, port_env_var: str(port)}
 
     process = subprocess.Popen(
         [
             "uv",
             "run",
             "uvicorn",
-            "memory_service.main:app",
+            module_name,
             "--host",
             "127.0.0.1",
             "--port",
@@ -86,13 +76,39 @@ def stop_process(process: subprocess.Popen[str]) -> None:
 
 
 async def exercise_mcp_server(tmp_path: Path) -> None:
-    memory_process, memory_port = start_memory_service(tmp_path)
+    memory_process, memory_port = start_http_service(
+        "memory_service.main:app",
+        {
+            "DATABASE_URL": f"sqlite+pysqlite:///{tmp_path / 'mcp-memory-service.db'}",
+            "AUTO_CREATE_SCHEMA": "true",
+            "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
+        },
+        "MEMORY_SERVICE_PORT",
+    )
+    capability_process, capability_port = start_http_service(
+        "capability_gateway.main:app",
+        {
+            "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
+            "CAPABILITY_REGISTRY_PATH": "config/registry/capabilities.yaml",
+        },
+        "CAPABILITY_GATEWAY_PORT",
+    )
+    workflow_process, workflow_port = start_http_service(
+        "workflow_worker.main:app",
+        {
+            "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
+            "MEMORY_SERVICE_BASE_URL": f"http://127.0.0.1:{memory_port}",
+            "CAPABILITY_GATEWAY_BASE_URL": f"http://127.0.0.1:{capability_port}",
+        },
+        "WORKFLOW_WORKER_PORT",
+    )
     try:
         server_env = os.environ.copy()
         server_env.update(
             {
                 "ORCHESTRATOR_MCP_TRANSPORT": "stdio",
                 "MEMORY_SERVICE_BASE_URL": f"http://127.0.0.1:{memory_port}",
+                "WORKFLOW_WORKER_BASE_URL": f"http://127.0.0.1:{workflow_port}",
                 "CONTROL_PLANE_CONFIG_PATH": "config/control-plane/default.yaml",
                 "CAPABILITY_REGISTRY_PATH": "config/registry/capabilities.yaml",
                 "AGENT_REGISTRY_PATH": "config/registry/agents.yaml",
@@ -113,6 +129,7 @@ async def exercise_mcp_server(tmp_path: Path) -> None:
                 tool_names = {tool.name for tool in tool_result.tools}
                 assert "create_domestic_payment_task" in tool_names
                 assert "get_domestic_payment_task" in tool_names
+                assert "resume_domestic_payment_task" in tool_names
 
                 create_result = await session.call_tool(
                     "create_domestic_payment_task",
@@ -131,6 +148,20 @@ async def exercise_mcp_server(tmp_path: Path) -> None:
                 structured = create_result.structuredContent
                 assert structured is not None
                 task_id = structured["task"]["task_id"]
+                assert structured["task"]["status"] == "awaiting_approval"
+
+                resume_result = await session.call_tool(
+                    "resume_domestic_payment_task",
+                    {
+                        "task_id": task_id,
+                        "approved_by": "user.ops_approver",
+                        "release_mode": "execute",
+                    },
+                )
+                assert resume_result.isError is False
+                resumed = resume_result.structuredContent
+                assert resumed is not None
+                assert resumed["task"]["status"] == "settlement_pending"
 
                 resource_result = await session.read_resource("registry://capabilities")
                 assert resource_result.contents
@@ -144,6 +175,8 @@ async def exercise_mcp_server(tmp_path: Path) -> None:
                 assert prompt_result.messages
                 assert task_id in prompt_result.messages[0].content.text
     finally:
+        stop_process(workflow_process)
+        stop_process(capability_process)
         stop_process(memory_process)
 
 

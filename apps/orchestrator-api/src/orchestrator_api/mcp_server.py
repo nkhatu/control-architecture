@@ -9,8 +9,9 @@ from mcp.server.fastmcp import FastMCP
 from .config import AppSettings, get_settings
 from .memory_client import MemoryServiceClient, MemoryServiceHttpClient
 from .registry import load_registry_snapshot
-from .schemas import DomesticPaymentIntakeRequest
+from .schemas import DomesticPaymentIntakeRequest, DomesticPaymentResumeRequest
 from .service import OrchestrationService
+from .workflow_client import WorkflowWorkerClient, WorkflowWorkerHttpClient
 
 
 @dataclass
@@ -18,24 +19,28 @@ class McpRuntime:
     settings: AppSettings
     service: OrchestrationService
     memory_client: MemoryServiceClient
+    workflow_client: WorkflowWorkerClient
 
 
 def create_runtime(
     settings: AppSettings | None = None,
     memory_service_client: MemoryServiceClient | None = None,
+    workflow_worker_client: WorkflowWorkerClient | None = None,
 ) -> McpRuntime:
     app_settings = settings or get_settings()
     memory_client = memory_service_client or MemoryServiceHttpClient(app_settings.memory_service_base_url)
+    workflow_client = workflow_worker_client or WorkflowWorkerHttpClient(app_settings.workflow_worker_base_url)
     snapshot = load_registry_snapshot(app_settings)
-    service = OrchestrationService(snapshot, memory_client)
-    return McpRuntime(settings=app_settings, service=service, memory_client=memory_client)
+    service = OrchestrationService(snapshot, memory_client, workflow_client)
+    return McpRuntime(settings=app_settings, service=service, memory_client=memory_client, workflow_client=workflow_client)
 
 
 def create_mcp_server(
     settings: AppSettings | None = None,
     memory_service_client: MemoryServiceClient | None = None,
+    workflow_worker_client: WorkflowWorkerClient | None = None,
 ) -> FastMCP:
-    runtime = create_runtime(settings, memory_service_client)
+    runtime = create_runtime(settings, memory_service_client, workflow_worker_client)
 
     mcp = FastMCP(
         name="Agentic Money Movement Orchestrator",
@@ -80,6 +85,26 @@ def create_mcp_server(
             principal_scopes=principal_scopes or ["payment.validate", "payment.submit_for_approval"],
         )
         return runtime.service.create_domestic_payment_task(request).model_dump()
+
+    @mcp.tool(
+        name="resume_domestic_payment_task",
+        description="Resume a waiting domestic payment task after approval and submit release through the worker.",
+        structured_output=True,
+    )
+    def resume_domestic_payment_task(
+        task_id: str,
+        approved_by: str,
+        approval_note: str | None = None,
+        idempotency_key: str | None = None,
+        release_mode: str = "execute",
+    ) -> dict[str, object]:
+        request = DomesticPaymentResumeRequest(
+            approved_by=approved_by,
+            approval_note=approval_note,
+            idempotency_key=idempotency_key,
+            release_mode=release_mode,
+        )
+        return runtime.service.resume_task(task_id, request).model_dump()
 
     @mcp.tool(
         name="get_domestic_payment_task",

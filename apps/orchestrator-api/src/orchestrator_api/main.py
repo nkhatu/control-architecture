@@ -7,29 +7,41 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from .config import AppSettings, get_settings
 from .memory_client import MemoryServiceClient, MemoryServiceHttpClient
 from .registry import load_registry_snapshot
-from .schemas import DomesticPaymentIntakeRequest, DomesticPaymentIntakeResponse
+from .schemas import (
+    DomesticPaymentIntakeRequest,
+    DomesticPaymentIntakeResponse,
+    DomesticPaymentResumeRequest,
+    DomesticPaymentResumeResponse,
+)
 from .service import OrchestrationService, OrchestrationServiceError
+from .workflow_client import WorkflowWorkerClient, WorkflowWorkerHttpClient
 
 
 def create_app(
     settings: AppSettings | None = None,
     memory_service_client: MemoryServiceClient | None = None,
+    workflow_worker_client: WorkflowWorkerClient | None = None,
 ) -> FastAPI:
     app_settings = settings or get_settings()
     registry_snapshot = load_registry_snapshot(app_settings)
     owned_memory_client = memory_service_client is None
+    owned_workflow_client = workflow_worker_client is None
     active_memory_client = memory_service_client or MemoryServiceHttpClient(app_settings.memory_service_base_url)
-    service = OrchestrationService(registry_snapshot, active_memory_client)
+    active_workflow_client = workflow_worker_client or WorkflowWorkerHttpClient(app_settings.workflow_worker_base_url)
+    service = OrchestrationService(registry_snapshot, active_memory_client, active_workflow_client)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.settings = app_settings
         app.state.registry_snapshot = registry_snapshot
         app.state.memory_service_client = active_memory_client
+        app.state.workflow_worker_client = active_workflow_client
         app.state.service = service
         yield
         if owned_memory_client:
             active_memory_client.close()
+        if owned_workflow_client:
+            active_workflow_client.close()
 
     app = FastAPI(
         title="Orchestrator API",
@@ -52,7 +64,12 @@ def create_app(
 
     @app.get("/metadata")
     def metadata(service: OrchestrationService = Depends(get_service)) -> dict[str, object]:
-        return service.metadata(app_settings.memory_service_base_url, app_settings.app_name, app_settings.app_env)
+        return service.metadata(
+            app_settings.memory_service_base_url,
+            app_settings.workflow_worker_base_url,
+            app_settings.app_name,
+            app_settings.app_env,
+        )
 
     @app.post("/tasks/domestic-payments", response_model=DomesticPaymentIntakeResponse, status_code=status.HTTP_201_CREATED)
     def create_domestic_payment_task(
@@ -66,6 +83,21 @@ def create_app(
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
             if "missing from the registry" in str(exc):
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+            if "cannot be resumed" in str(exc):
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+    @app.post("/tasks/{task_id}/resume", response_model=DomesticPaymentResumeResponse)
+    def resume_domestic_payment_task(
+        task_id: str,
+        payload: DomesticPaymentResumeRequest,
+        service: OrchestrationService = Depends(get_service),
+    ) -> DomesticPaymentResumeResponse:
+        try:
+            return service.resume_task(task_id, payload)
+        except OrchestrationServiceError as exc:
+            if "cannot be resumed" in str(exc):
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
     @app.get("/tasks/{task_id}")

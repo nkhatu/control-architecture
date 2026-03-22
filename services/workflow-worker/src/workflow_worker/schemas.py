@@ -8,9 +8,10 @@ from pydantic import BaseModel, Field
 
 Rail = Literal["ach", "same_day_ach", "internal_transfer", "rtp"]
 PolicyDecisionType = Literal["allow", "deny", "escalate", "simulate"]
+ReleaseMode = Literal["dry_run", "execute"]
 
 
-class DomesticPaymentIntakeRequest(BaseModel):
+class DomesticPaymentIntakePayload(BaseModel):
     customer_id: str
     source_account_id: str
     beneficiary_id: str
@@ -20,15 +21,10 @@ class DomesticPaymentIntakeRequest(BaseModel):
     initiated_by: str
     memo: str | None = None
     trace_id: str | None = None
-    principal_scopes: list[str] = Field(
-        default_factory=lambda: [
-            "payment.validate",
-            "payment.submit_for_approval",
-        ]
-    )
+    principal_scopes: list[str] = Field(default_factory=list)
 
 
-class PolicyDecisionResponse(BaseModel):
+class PolicyDecision(BaseModel):
     decision: PolicyDecisionType
     reason: str
     approval_profile: str
@@ -37,29 +33,29 @@ class PolicyDecisionResponse(BaseModel):
     requires_manual_escalation: bool = False
 
 
-class WorkflowProgressResponse(BaseModel):
+class WorkflowStartRequest(BaseModel):
+    request: DomesticPaymentIntakePayload
+    policy_decision: PolicyDecision
+    selected_agents: list[str] = Field(default_factory=list)
+    available_capabilities: list[str] = Field(default_factory=list)
+
+
+class WorkflowResumeRequest(BaseModel):
+    approved_by: str
+    approval_note: str | None = None
+    idempotency_key: str | None = None
+    release_mode: ReleaseMode = "execute"
+
+
+class WorkflowProgress(BaseModel):
     workflow_id: str
     workflow_state: str
     next_action: str
     last_capability: str | None = None
 
 
-class DomesticPaymentIntakeResponse(BaseModel):
+class WorkflowExecutionResponse(BaseModel):
     task: dict[str, Any]
-    policy_decision: PolicyDecisionResponse
-    available_capabilities: list[str]
-    selected_agents: list[str]
-    workflow: WorkflowProgressResponse
-
-
-class DomesticPaymentResumeRequest(BaseModel):
-    approved_by: str
-    approval_note: str | None = None
-    idempotency_key: str | None = None
-    release_mode: Literal["dry_run", "execute"] = "execute"
-
-
-class DomesticPaymentResumeResponse(BaseModel):
-    task: dict[str, Any]
-    workflow: WorkflowProgressResponse
+    workflow: WorkflowProgress
+    artifacts_created: list[str] = Field(default_factory=list)
     release_result: dict[str, Any] | None = None
