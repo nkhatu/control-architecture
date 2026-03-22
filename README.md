@@ -1,6 +1,6 @@
 # Agentic Domestic Money Movement PoC
 
-This scaffold turns the architecture in `agentic_money_movement_architecture_v5_protocol_complete.docx` into a proof-of-concept repository shape.
+This scaffold turns the architecture described in [Protocol-Mediated Agentic Money Movement Control Platform Architecture.pdf](docs/architecture/Protocol-Mediated%20Agentic%20Money%20Movement%20Control%20Platform%20Architecture.pdf) into a proof-of-concept repository shape.
 
 The PoC is intentionally narrow:
 
@@ -22,6 +22,8 @@ The document's core architectural rule is separation:
 This repository mirrors that split from day one so the PoC does not collapse into a single service.
 
 ## Reference Diagrams
+
+Full architecture document: [Protocol-Mediated Agentic Money Movement Control Platform Architecture.pdf](docs/architecture/Protocol-Mediated%20Agentic%20Money%20Movement%20Control%20Platform%20Architecture.pdf)
 
 ### Protocol-Mediated Architecture
 
