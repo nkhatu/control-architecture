@@ -137,3 +137,27 @@ This aligns to the platform architecture by preserving the core separation of co
 - protocol-level delegation data is carried as explicit machine-readable envelopes instead of implicit service calls.
 
 For service-level run commands and MCP details, see [apps/orchestrator-api/README.md](apps/orchestrator-api/README.md).
+
+## Local Setup
+
+For prerequisites, startup commands, and the end-to-end runbook, see [docs/runbooks/local-setup.md](docs/runbooks/local-setup.md).
+
+## Implementation Status
+
+| Area | Status | Current State | What Still Needs To Be Built |
+| --- | --- | --- | --- |
+| `control-plane` | Built | Read-only control-plane and registry publishing boundary with snapshot/version endpoints | Versioned write APIs, approval/audit workflow for control changes |
+| `policy-engine` | Built | Deterministic intake and release decisions, reading from `control-plane` with local fallback | Real OPA-backed evaluation path and bundle/data loading |
+| `capability-gateway` | Built | Typed mock rail wrappers for instruction creation, beneficiary validation, release, status, and idempotency replay | Real bank/rail adapter beyond the mock rail |
+| `context-memory-service` | Built | Current task snapshot boundary with transactional outbox | Production persistence hardening and full migration flow against Postgres |
+| `provenance-service` | Built | Append-only provenance, artifacts, state transitions, and delegated work records | Additional provenance projection types beyond the current slice |
+| `event-consumer` | Built | Idempotent projection of task create and state-change outbox events into provenance | Broader event coverage and durable broker-backed runtime |
+| `workflow-worker` | Built | End-to-end workflow from intake through validation, approval wait, release, and ambiguous-result handling | Temporal-native execution instead of the current local HTTP worker flow |
+| `orchestrator-api` | Built | REST intake/resume APIs plus MCP adapter, reading from `control-plane` and coordinating policy + workflow | Broader protocol surface and tighter runtime policy provenance/version pinning |
+| Split state boundary | Built | `context-memory-service` and `provenance-service` are separated | Stronger consistency and replay handling across more record types |
+| Shared contracts | Built | Typed Python contracts in `packages/shared-contracts` and JSON schemas in `packages/capability-schemas` | More typed transport DTOs for remaining loose payloads |
+| Delegated-agent runtime | Built | Parent/delegated flow for `agent.payment_orchestrator`, `agent.compliance_screening`, and `agent.approval_router` | Broader delegated execution coverage for additional actions |
+| End-to-end runbook | Built | Manual walkthrough in [end-to-end-test.md](docs/runbooks/end-to-end-test.md) | Optional automation of the runbook as a scripted smoke test |
+| Database and infra | Partial | Local Docker scaffolding exists | Full Postgres-backed runtime, migrations in deployed flow, NATS subjects, Temporal namespace/workflow registration |
+| Security and auth | Partial | Basic structure only | JWT signing, delegated token validation, scoped authority enforcement, audit hardening |
+| Ops console | Built | React/Vite operator console with a top-menu layout for overview, payment intake, approvals, task explorer, and exception review, plus approval-backed release | Server-side queue/list endpoints, deeper investigation views, and authenticated operator sessions |
