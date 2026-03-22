@@ -25,6 +25,8 @@ This repository mirrors that split from day one so the PoC does not collapse int
 
 Full architecture document: [Protocol-Mediated Agentic Money Movement Control Platform Architecture.pdf](docs/architecture/Protocol-Mediated%20Agentic%20Money%20Movement%20Control%20Platform%20Architecture.pdf)
 
+Implementation addendum: [implementation-update-2026-03.md](docs/architecture/implementation-update-2026-03.md)
+
 ### Protocol-Mediated Architecture
 
 ![Protocol-Mediated Architecture](docs/architecture/Protocol%20Mediated%20Architecture.jpg)
