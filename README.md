@@ -71,7 +71,3 @@ docs/
 4. If allowed, `workflow-worker` drives validation, approval wait states, release, and ambiguous-response holds.
 5. `capability-gateway` talks to a mock rail and emits structured events.
 6. `event-consumer` updates read models and audit projections.
-
-## Local Setup
-
-See [docs/runbooks/local-setup.md](/Users/enkay/Documents/Scripts/Control Architecture/docs/runbooks/local-setup.md) for the setup sequence and [docs/architecture/poc-scope.md](/Users/enkay/Documents/Scripts/Control Architecture/docs/architecture/poc-scope.md) for scope choices.
