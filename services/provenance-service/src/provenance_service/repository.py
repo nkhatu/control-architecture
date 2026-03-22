@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -86,7 +87,7 @@ class ProvenanceRepository:
             task_id=task_id,
             artifact_type=payload.artifact_type,
             artifact_ref=payload.artifact_ref,
-            content=payload.content,
+            content=self._json_value(payload.content),
             trust_level=payload.trust_level,
             created_by=payload.created_by,
         )
@@ -112,8 +113,8 @@ class ProvenanceRepository:
             delegated_action=payload.delegated_action,
             capability_id=payload.capability_id,
             status=payload.status,
-            request_envelope=payload.request_envelope,
-            response_envelope=payload.response_envelope,
+            request_envelope=self._json_value(payload.request_envelope),
+            response_envelope=self._json_value(payload.response_envelope),
         )
         task.last_updated_by = payload.parent_agent_id
 
@@ -134,7 +135,7 @@ class ProvenanceRepository:
 
         delegation.status = payload.status
         if payload.response_envelope is not None:
-            delegation.response_envelope = payload.response_envelope
+            delegation.response_envelope = self._json_value(payload.response_envelope)
 
         task = self.get_task_provenance(delegation.task_id)
         if task is not None:
@@ -144,3 +145,12 @@ class ProvenanceRepository:
         self.session.add(delegation)
         self.session.commit()
         return self.get_delegation(delegation_id)
+
+    def _json_value(self, value):
+        if value is None:
+            return None
+        if hasattr(value, "model_dump"):
+            return value.model_dump(mode="json")
+        if isinstance(value, Mapping):
+            return dict(value)
+        return value

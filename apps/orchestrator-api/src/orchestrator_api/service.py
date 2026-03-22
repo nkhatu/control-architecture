@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 
-from shared_contracts.tasks import TaskDetailView
+from shared_contracts.tasks import ReleasePolicyDecisionArtifactContent, TaskDetailView
 
 from .memory_client import MemoryServiceClient, MemoryServiceError
 from .policy_client import PolicyServiceClient, PolicyServiceError
@@ -148,7 +148,7 @@ class OrchestrationService:
                 task_id,
                 {
                     "artifact_type": "release_policy_decision",
-                    "content": decision.model_dump(mode="json"),
+                    "content": ReleasePolicyDecisionArtifactContent(**decision.model_dump(mode="json")).model_dump(mode="json"),
                     "created_by": self.app_name,
                 },
             )

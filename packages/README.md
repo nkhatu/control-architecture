@@ -5,7 +5,7 @@
 Use these packages with the following rule of thumb:
 
 - `shared-contracts/`
-  Use for Python runtime models that backend services import directly. These are typed Pydantic contracts used in process and across internal HTTP boundaries.
+  Use for Python runtime models that backend services import directly. These are typed Pydantic contracts used in process and across internal HTTP boundaries, including event payloads, delegation envelopes, artifact payloads, and merged read models.
 - `capability-schemas/`
   Use for language-neutral JSON Schema definitions. These are the machine-readable contract documents for protocol messages, capability requests, and shared payload validation.
 - `policy-models/`

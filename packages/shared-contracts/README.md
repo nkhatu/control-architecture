@@ -6,6 +6,8 @@ Current contents:
 
 - task lifecycle outbox event models
 - task context, provenance, and merged task-detail view models
+- typed delegation request/result/callback envelopes
+- typed artifact payload models for validation, approval, policy, and release evidence
 - helpers for merging context and provenance into a single read model
 
 Use this package when:

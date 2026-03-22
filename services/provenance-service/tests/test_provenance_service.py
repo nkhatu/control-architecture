@@ -1,4 +1,16 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi.testclient import TestClient
+from shared_contracts.tasks import (
+    ApprovalRequestArtifactContent,
+    ApprovalRoutingRequestEnvelope,
+    ApprovalRoutingResultEnvelope,
+    DelegationContext,
+    MessageSource,
+    MessageTarget,
+    TrustContext,
+    TraceContext,
+)
 
 from provenance_service.config import AppSettings
 from provenance_service.main import create_app
@@ -10,6 +22,54 @@ def test_provenance_service_records_history_artifacts_and_delegations(tmp_path) 
         auto_create_schema=True,
         database_url=f"sqlite+pysqlite:///{database_path}",
         control_plane_config_path="config/control-plane/default.yaml",
+    )
+    now = datetime.now(timezone.utc)
+    request_envelope = ApprovalRoutingRequestEnvelope(
+        message_id="msg_001",
+        correlation_id="corr_001",
+        task_id="task_001",
+        workflow_id="wf_task_001",
+        timestamp=now,
+        source=MessageSource(principal_type="agent", principal_id="agent.payment_orchestrator"),
+        delegation=DelegationContext(
+            delegated_by="agent.payment_orchestrator",
+            delegation_chain=["agent.payment_orchestrator", "agent.approval_router"],
+            scope=["payment.submit_for_approval"],
+            expires_at=now + timedelta(minutes=15),
+        ),
+        target=MessageTarget(target_type="agent", target_id="agent.approval_router", version="v1"),
+        trust=TrustContext(classification="bounded_delegation", human_approval_required=True),
+        payload={
+            "delegated_action": "approval_routing",
+            "approval_profile": "single_approval",
+            "task_summary": {
+                "task_id": "task_001",
+                "payment_id": "pay_001",
+                "customer_id": "cust_001",
+                "amount_usd": 2500,
+                "rail": "ach",
+            },
+        },
+        trace=TraceContext(trace_id="tr_001", span_id="span_001"),
+    )
+    response_envelope = ApprovalRoutingResultEnvelope(
+        message_id="msg_002",
+        correlation_id="corr_001",
+        task_id="task_001",
+        workflow_id="wf_task_001",
+        timestamp=now,
+        source=MessageSource(principal_type="agent", principal_id="agent.approval_router"),
+        delegation=request_envelope.delegation,
+        target=MessageTarget(target_type="agent", target_id="agent.payment_orchestrator", version="v1"),
+        trust=request_envelope.trust,
+        payload=ApprovalRequestArtifactContent(
+            approval_request_id="apr_001",
+            approval_status="pending",
+            approval_profile="single_approval",
+            required_approvals=1,
+            route="human_approval_queue",
+        ),
+        trace=TraceContext(trace_id="tr_001", span_id="span_002"),
     )
 
     with TestClient(create_app(settings)) as client:
@@ -50,7 +110,11 @@ def test_provenance_service_records_history_artifacts_and_delegations(tmp_path) 
             "/tasks/task_001/artifacts",
             json={
                 "artifact_type": "beneficiary_validation_result",
-                "content": {"status": "validated"},
+                "content": {
+                    "beneficiary_id": "ben_001",
+                    "status": "validated",
+                    "validated_at": now.isoformat(),
+                },
                 "created_by": "agent.compliance_screening",
             },
         )
@@ -64,7 +128,7 @@ def test_provenance_service_records_history_artifacts_and_delegations(tmp_path) 
                 "delegated_agent_id": "agent.approval_router",
                 "delegated_action": "approval_routing",
                 "status": "pending",
-                "request_envelope": {"message_type": "delegation.request.approval_routing"},
+                "request_envelope": request_envelope.model_dump(mode="json"),
             },
         )
         assert delegation_response.status_code == 201
@@ -75,7 +139,7 @@ def test_provenance_service_records_history_artifacts_and_delegations(tmp_path) 
             json={
                 "status": "completed",
                 "updated_by": "agent.approval_router",
-                "response_envelope": {"message_type": "delegation.result.approval_routing"},
+                "response_envelope": response_envelope.model_dump(mode="json"),
             },
         )
         assert update_response.status_code == 200
