@@ -23,6 +23,7 @@ This service now has a runnable FastAPI skeleton under [main.py](/Users/enkay/Do
 
 Current PoC slice:
 
+- loads control settings and capability registry data from `control-plane`, with local file fallback
 - accepts domestic payment instruction requests and returns a typed task envelope
 - validates beneficiaries through a deterministic mock rail adapter
 - releases approved payments with explicit `success`, `reject`, and `ambiguous` mock outcomes

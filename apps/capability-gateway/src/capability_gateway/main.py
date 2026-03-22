@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, status
 
-from .config import AppSettings, get_settings, load_yaml_file
+from .config import AppSettings, get_settings, load_gateway_documents
 from .service import CapabilityGatewayError, CapabilityGatewayService
 from .schemas import (
     BeneficiaryValidationRequest,
@@ -22,9 +22,10 @@ def create_app(
     service: CapabilityGatewayService | None = None,
 ) -> FastAPI:
     app_settings = settings or get_settings()
+    control_plane_config, capability_registry = load_gateway_documents(app_settings)
     active_service = service or CapabilityGatewayService(
-        control_plane_config=load_yaml_file(app_settings.resolved_control_plane_config_path),
-        capability_registry=load_yaml_file(app_settings.resolved_capability_registry_path),
+        control_plane_config=control_plane_config,
+        capability_registry=capability_registry,
         app_name=app_settings.app_name,
         mock_rail_name=app_settings.mock_rail_name,
     )

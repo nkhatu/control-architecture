@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, status
 
 from .capability_client import CapabilityGatewayClient, CapabilityGatewayHttpClient
-from .config import AppSettings, get_settings, load_yaml_file
+from .config import AppSettings, get_settings, load_control_plane_document
 from .memory_client import MemoryServiceClient, MemoryServiceHttpClient
 from .schemas import WorkflowExecutionResponse, WorkflowResumeRequest, WorkflowStartRequest
 from .service import WorkflowWorkerError, WorkflowWorkerService
@@ -17,7 +17,7 @@ def create_app(
     capability_gateway_client: CapabilityGatewayClient | None = None,
 ) -> FastAPI:
     app_settings = settings or get_settings()
-    control_plane_config = load_yaml_file(app_settings.resolved_control_plane_config_path)
+    control_plane_config = load_control_plane_document(app_settings)
     owned_memory_client = memory_service_client is None
     owned_capability_client = capability_gateway_client is None
     active_memory_client = memory_service_client or MemoryServiceHttpClient(

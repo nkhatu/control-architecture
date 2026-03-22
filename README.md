@@ -99,7 +99,7 @@ For more detail, see [packages/README.md](packages/README.md).
 The PoC currently includes:
 
 - `control-plane` as a read-only runtime boundary for control-plane and registry publication.
-- `orchestrator-api` and `policy-engine` consuming `control-plane` as the primary config source, with local file fallback for isolated development and tests.
+- `orchestrator-api`, `policy-engine`, `workflow-worker`, and `capability-gateway` consuming `control-plane` as the primary config source, with local file fallback for isolated development and tests.
 - `context-memory-service` as the durable task snapshot boundary.
 - `provenance-service` as the append-only provenance and delegation boundary.
 - a transactional outbox in `context-memory-service` for task create and state-change events.

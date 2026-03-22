@@ -29,6 +29,7 @@ This service now has a runnable FastAPI skeleton under [main.py](/Users/enkay/Do
 
 Current PoC slice:
 
+- loads control settings from `control-plane`, with local YAML fallback
 - starts the domestic payment workflow after orchestrator intake
 - creates the payment instruction through `capability-gateway`
 - writes the current task snapshot to `context-memory-service`
