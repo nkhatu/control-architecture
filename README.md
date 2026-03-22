@@ -82,4 +82,26 @@ The PoC currently includes:
 - delegated work records and protocol envelopes for compliance screening and approval routing.
 - MCP tools, resources, and a review prompt exposed through the orchestrator for controlled task creation and retrieval.
 
+## Delegated Agent Alignment
+
+The current delegated-agent flow is:
+
+- `agent.payment_orchestrator` acts as the parent agent.
+- `agent.compliance_screening` handles beneficiary validation.
+- `agent.approval_router` handles approval routing.
+- approval resume completes the pending delegation before release continues.
+
+This aligns to the trust graph by making the parent agent, delegated agents, and context memory explicit:
+
+- the parent-agent role is implemented in `orchestrator-api` and carried into `workflow-worker`.
+- delegated work is persisted in `memory-service` with request and response envelopes, status, and provenance.
+- compliance screening and approval routing now execute as bounded delegated steps rather than as anonymous internal calls.
+
+This aligns to the platform architecture by preserving the core separation of concerns:
+
+- orchestration remains in `orchestrator-api` and `workflow-worker`.
+- durable state and delegation records remain in `memory-service`.
+- rail-side execution remains behind `capability-gateway`.
+- protocol-level delegation data is carried as explicit machine-readable envelopes instead of implicit service calls.
+
 For service-level run commands and MCP details, see [apps/orchestrator-api/README.md](apps/orchestrator-api/README.md).
