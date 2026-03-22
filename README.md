@@ -38,6 +38,7 @@ Full architecture document: [Protocol-Mediated Agentic Money Movement Control Pl
 ```text
 apps/
   ops-console/          operator UI for approvals, review, and investigations
+  control-plane-service/ read-only control-plane and registry publishing boundary
   orchestrator-api/     intake API, registry lookups, policy checks, workflow kickoff, MCP server adapter
   policy-service/       deterministic policy decision service and OPA-aligned policy bundle
   capability-gateway/   typed wrappers around mock payment rails
@@ -97,6 +98,7 @@ For more detail, see [packages/README.md](packages/README.md).
 
 The PoC currently includes:
 
+- `control-plane-service` as a read-only runtime boundary for control-plane and registry publication.
 - `context-memory-service` as the durable task snapshot boundary.
 - `provenance-service` as the append-only provenance and delegation boundary.
 - a transactional outbox in `context-memory-service` for task create and state-change events.

@@ -30,6 +30,7 @@ dev = [
 [tool.setuptools]
 packages = [
   "shared_contracts",
+  "control_plane_service",
   "context_memory_service",
   "provenance_service",
   "event_consumer",
@@ -41,6 +42,7 @@ packages = [
 
 [tool.setuptools.package-dir]
 shared_contracts = "packages/shared-contracts/src/shared_contracts"
+control_plane_service = "apps/control-plane-service/src/control_plane_service"
 context_memory_service = "services/context-memory-service/src/context_memory_service"
 provenance_service = "services/provenance-service/src/provenance_service"
 event_consumer = "services/event-consumer/src/event_consumer"
@@ -52,6 +54,7 @@ policy_service = "apps/policy-service/src/policy_service"
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = [
+  "apps/control-plane-service/tests",
   "services/context-memory-service/tests",
   "services/provenance-service/tests",
   "services/event-consumer/tests",
