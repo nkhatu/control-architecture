@@ -38,6 +38,7 @@ From the repo root:
 
 ```bash
 uv sync --extra dev
+uv run alembic upgrade head
 uv run uvicorn memory_service.main:app --reload --host 0.0.0.0 --port 8002
 ```
 
@@ -45,4 +46,18 @@ uv run uvicorn memory_service.main:app --reload --host 0.0.0.0 --port 8002
 
 ```bash
 uv run pytest
+```
+
+## Migration Workflow
+
+Create the schema in the local database:
+
+```bash
+uv run alembic upgrade head
+```
+
+Generate a new migration after model changes:
+
+```bash
+uv run alembic revision --autogenerate -m "describe change"
 ```

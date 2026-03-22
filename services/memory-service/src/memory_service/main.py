@@ -26,7 +26,8 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        init_db(engine)
+        if app_settings.auto_create_schema:
+            init_db(engine)
         app.state.settings = app_settings
         app.state.session_factory = session_factory
         app.state.control_plane_config = control_plane_config

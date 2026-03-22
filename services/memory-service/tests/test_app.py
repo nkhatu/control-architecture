@@ -9,6 +9,7 @@ from memory_service.main import create_app
 def build_test_client(tmp_path: Path) -> TestClient:
     database_path = tmp_path / "memory-service.db"
     settings = AppSettings(
+        auto_create_schema=True,
         database_url=f"sqlite+pysqlite:///{database_path}",
         control_plane_config_path="config/control-plane/default.yaml",
     )

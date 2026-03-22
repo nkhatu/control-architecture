@@ -29,13 +29,19 @@
 uv sync --extra dev
 ```
 
-3. Start the first service:
+3. Apply database migrations:
+
+```bash
+uv run alembic upgrade head
+```
+
+4. Start the first service:
 
 ```bash
 uv run uvicorn memory_service.main:app --reload --host 0.0.0.0 --port 8002
 ```
 
-4. Run tests:
+5. Run tests:
 
 ```bash
 uv run pytest

@@ -21,6 +21,7 @@ class AppSettings(BaseSettings):
     app_env: str = "local"
     host: str = "0.0.0.0"
     port: int = Field(default=8002, validation_alias="MEMORY_SERVICE_PORT")
+    auto_create_schema: bool = Field(default=False, validation_alias="AUTO_CREATE_SCHEMA")
 
     database_url: str | None = Field(default=None, validation_alias="DATABASE_URL")
     postgres_host: str = Field(default="localhost", validation_alias="POSTGRES_HOST")
