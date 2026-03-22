@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from shared_contracts.events import (
+    EVENT_TYPE_TASK_CREATED,
+    EVENT_TYPE_TASK_STATE_CHANGED,
+    TaskLifecycleOutboxEvent,
+)
+
 from .context_client import ContextOutboxClient
 from .provenance_client import ProvenanceProjectionClient
-from .schemas import DispatchFailure, DispatchResponse, OutboxEvent
-
-
-EVENT_TYPE_TASK_CREATED = "task.lifecycle.created.v1"
-EVENT_TYPE_TASK_STATE_CHANGED = "task.lifecycle.state_changed.v1"
+from .schemas import DispatchFailure, DispatchResponse
 
 
 class EventConsumerService:
@@ -32,7 +34,7 @@ class EventConsumerService:
 
     def process_once(self, *, limit: int, lease_seconds: int) -> DispatchResponse:
         claimed = [
-            OutboxEvent.model_validate(item)
+            item
             for item in self._context_outbox_client.claim_events(limit=limit, lease_seconds=lease_seconds)
         ]
 
@@ -62,28 +64,23 @@ class EventConsumerService:
             failures=failures,
         )
 
-    def _project_event(self, event: OutboxEvent) -> None:
-        payload = event.payload
-        task_id = payload["task_id"]
+    def _project_event(self, event: TaskLifecycleOutboxEvent) -> None:
+        task_id = event.payload.task_id
 
         if event.event_type == EVENT_TYPE_TASK_CREATED:
-            self._provenance_client.ensure_task_provenance(task_id, payload["provenance"])
+            self._provenance_client.ensure_task_provenance(task_id, event.payload.provenance)
             self._provenance_client.append_state_transition(
                 task_id,
-                {
-                    **payload["transition"],
-                    "source_event_id": event.event_id,
-                },
+                event.payload.transition,
+                source_event_id=event.event_id,
             )
             return
 
         if event.event_type == EVENT_TYPE_TASK_STATE_CHANGED:
             self._provenance_client.append_state_transition(
                 task_id,
-                {
-                    **payload["transition"],
-                    "source_event_id": event.event_id,
-                },
+                event.payload.transition,
+                source_event_id=event.event_id,
             )
             return
 

@@ -5,13 +5,17 @@ from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from shared_contracts.events import (
+    EVENT_TYPE_TASK_CREATED,
+    EVENT_TYPE_TASK_STATE_CHANGED,
+    TaskCreatedEventPayload,
+    TaskLifecycleTransition,
+    TaskSnapshotState,
+    TaskStateChangedEventPayload,
+)
 
 from .models import OutboxEvent, Task
 from .schemas import TaskCreateRequest, TaskStatePatchRequest
-
-
-EVENT_TYPE_TASK_CREATED = "task.lifecycle.created.v1"
-EVENT_TYPE_TASK_STATE_CHANGED = "task.lifecycle.state_changed.v1"
 
 
 class NoStateChangeError(ValueError):
@@ -39,20 +43,20 @@ class TaskContextRepository:
             aggregate_type="task",
             aggregate_id=task.task_id,
             event_type=EVENT_TYPE_TASK_CREATED,
-            payload={
-                "task_id": task.task_id,
-                "payment_id": task.payment_id,
-                "customer_id": task.customer_id,
-                "rail": task.rail,
-                "amount_usd": float(task.amount_usd),
-                "provenance": payload.provenance.model_dump(),
-                "transition": {
-                    "from_status": None,
-                    "to_status": task.status,
-                    "changed_by": payload.provenance.initiated_by,
-                    "reason": "task created",
-                },
-            },
+            payload=TaskCreatedEventPayload(
+                task_id=task.task_id,
+                payment_id=task.payment_id,
+                customer_id=task.customer_id,
+                rail=task.rail,
+                amount_usd=float(task.amount_usd),
+                provenance=payload.provenance,
+                transition=TaskLifecycleTransition(
+                    from_status=None,
+                    to_status=task.status,
+                    changed_by=payload.provenance.initiated_by,
+                    reason="task created",
+                ),
+            ).model_dump(mode="json"),
             status="pending",
         )
 
@@ -93,21 +97,21 @@ class TaskContextRepository:
             aggregate_type="task",
             aggregate_id=task.task_id,
             event_type=EVENT_TYPE_TASK_STATE_CHANGED,
-            payload={
-                "task_id": task.task_id,
-                "payment_id": task.payment_id,
-                "transition": {
-                    "from_status": previous_status,
-                    "to_status": payload.status,
-                    "changed_by": payload.changed_by,
-                    "reason": payload.reason,
-                },
-                "task_snapshot": {
-                    "status": task.status,
-                    "approval_status": task.approval_status,
-                    "beneficiary_status": task.beneficiary_status,
-                },
-            },
+            payload=TaskStateChangedEventPayload(
+                task_id=task.task_id,
+                payment_id=task.payment_id,
+                transition=TaskLifecycleTransition(
+                    from_status=previous_status,
+                    to_status=payload.status,
+                    changed_by=payload.changed_by,
+                    reason=payload.reason,
+                ),
+                task_snapshot=TaskSnapshotState(
+                    status=task.status,
+                    approval_status=task.approval_status,
+                    beneficiary_status=task.beneficiary_status,
+                ),
+            ).model_dump(mode="json"),
             status="pending",
         )
 

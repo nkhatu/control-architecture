@@ -135,7 +135,7 @@ def create_mcp_server(
         structured_output=True,
     )
     def get_domestic_payment_task(task_id: str) -> dict[str, object]:
-        return runtime.service.get_task(task_id)
+        return runtime.service.get_task(task_id).model_dump(mode="json")
 
     @mcp.tool(
         name="list_orchestrator_registry_summary",
@@ -183,7 +183,7 @@ def create_mcp_server(
         mime_type="application/json",
     )
     def domestic_payment_task(task_id: str) -> str:
-        return json.dumps(runtime.service.get_task(task_id), indent=2)
+        return json.dumps(runtime.service.get_task(task_id).model_dump(mode="json"), indent=2)
 
     @mcp.prompt(
         name="review_domestic_payment_task",
@@ -195,7 +195,7 @@ def create_mcp_server(
         return (
             "Review the following domestic payment task.\n"
             "Summarize the current state, the policy decision, open risks, and the next safe action.\n\n"
-            f"{json.dumps(task, indent=2)}"
+            f"{json.dumps(task.model_dump(mode='json'), indent=2)}"
         )
 
     return mcp

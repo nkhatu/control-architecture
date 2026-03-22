@@ -5,6 +5,7 @@ from typing import Generator
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.orm import Session
+from shared_contracts.events import parse_task_lifecycle_outbox_event
 
 from .config import AppSettings, get_settings, load_control_plane_config
 from .database import create_session_factory, create_sqlalchemy_engine, init_db
@@ -12,7 +13,6 @@ from .repository import NoStateChangeError, TaskContextRepository
 from .schemas import (
     OutboxClaimRequest,
     OutboxClaimResponse,
-    OutboxEventResponse,
     OutboxFailRequest,
     TaskCreateRequest,
     TaskResponse,
@@ -111,28 +111,28 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         repository: TaskContextRepository = Depends(get_repository),
     ) -> OutboxClaimResponse:
         events = repository.claim_outbox_events(limit=payload.limit, lease_seconds=payload.lease_seconds)
-        return OutboxClaimResponse(events=[OutboxEventResponse.model_validate(event) for event in events])
+        return OutboxClaimResponse(events=[parse_task_lifecycle_outbox_event(event) for event in events])
 
-    @app.post("/outbox/{event_id}/complete", response_model=OutboxEventResponse)
+    @app.post("/outbox/{event_id}/complete")
     def complete_outbox_event(
         event_id: str,
         repository: TaskContextRepository = Depends(get_repository),
-    ) -> OutboxEventResponse:
+    ):
         event = repository.complete_outbox_event(event_id)
         if event is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Outbox event {event_id} was not found.")
-        return OutboxEventResponse.model_validate(event)
+        return parse_task_lifecycle_outbox_event(event)
 
-    @app.post("/outbox/{event_id}/fail", response_model=OutboxEventResponse)
+    @app.post("/outbox/{event_id}/fail")
     def fail_outbox_event(
         event_id: str,
         payload: OutboxFailRequest,
         repository: TaskContextRepository = Depends(get_repository),
-    ) -> OutboxEventResponse:
+    ):
         event = repository.fail_outbox_event(event_id, error_message=payload.error_message)
         if event is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Outbox event {event_id} was not found.")
-        return OutboxEventResponse.model_validate(event)
+        return parse_task_lifecycle_outbox_event(event)
 
     return app
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 import httpx
+from shared_contracts.events import TaskLifecycleTransition
+from shared_contracts.tasks import ProvenanceSeed
 
 
 class ProvenanceProjectionError(RuntimeError):
@@ -12,10 +14,10 @@ class ProvenanceProjectionError(RuntimeError):
 
 
 class ProvenanceProjectionClient(Protocol):
-    def ensure_task_provenance(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def ensure_task_provenance(self, task_id: str, payload: ProvenanceSeed) -> dict[str, Any]:
         ...
 
-    def append_state_transition(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def append_state_transition(self, task_id: str, payload: TaskLifecycleTransition, *, source_event_id: str) -> dict[str, Any]:
         ...
 
     def close(self) -> None:
@@ -26,19 +28,22 @@ class ProvenanceProjectionHttpClient:
     def __init__(self, base_url: str, timeout_seconds: float = 5.0):
         self._client = httpx.Client(base_url=base_url, timeout=timeout_seconds)
 
-    def ensure_task_provenance(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def ensure_task_provenance(self, task_id: str, payload: ProvenanceSeed) -> dict[str, Any]:
         return self._request(
             "post",
             f"/tasks/{task_id}/provenance",
-            json=payload,
+            json=payload.model_dump(mode="json"),
             failure_message=f"Failed to project provenance for task {task_id}.",
         )
 
-    def append_state_transition(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def append_state_transition(self, task_id: str, payload: TaskLifecycleTransition, *, source_event_id: str) -> dict[str, Any]:
         return self._request(
             "post",
             f"/tasks/{task_id}/state-transitions",
-            json=payload,
+            json={
+                **payload.model_dump(mode="json"),
+                "source_event_id": source_event_id,
+            },
             failure_message=f"Failed to project state transition for task {task_id}.",
         )
 

@@ -2,6 +2,8 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from shared_contracts.events import TaskLifecycleTransition, parse_task_lifecycle_outbox_event
+from shared_contracts.tasks import ArtifactView, DelegatedWorkView, TaskContextView, TaskDetailView, TaskRecordsView, empty_task_records, merge_task_detail
 
 from capability_gateway.config import AppSettings as CapabilityGatewaySettings
 from capability_gateway.main import create_app as create_capability_gateway_app
@@ -21,49 +23,30 @@ class InProcessMemoryServiceClient:
         self._provenance_client = provenance_client
         self._event_consumer_client = event_consumer_client
 
-    def create_task(self, payload: dict) -> dict:
+    def create_task(self, payload: dict) -> TaskDetailView:
         context_response = self._context_client.post(
             "/tasks",
             json=payload,
         )
         context_response.raise_for_status()
-        context_task = context_response.json()
+        context_task = TaskContextView.model_validate(context_response.json())
         dispatch_response = self._event_consumer_client.post("/dispatch/run-once", json={"limit": 100, "lease_seconds": 30})
         dispatch_response.raise_for_status()
-        return self.get_task(context_task["task_id"])
+        return self.get_task(context_task.task_id)
 
-    def get_task(self, task_id: str) -> dict:
+    def get_task(self, task_id: str) -> TaskDetailView:
         context_response = self._context_client.get(f"/tasks/{task_id}")
         context_response.raise_for_status()
-        context_task = context_response.json()
+        context_task = TaskContextView.model_validate(context_response.json())
         records_response = self._provenance_client.get(f"/tasks/{task_id}/records")
         if records_response.status_code == 404:
-            records = {
-                "provenance": {
-                    "task_id": task_id,
-                    "initiated_by": "",
-                    "last_updated_by": "",
-                    "policy_context_id": None,
-                    "trace_id": None,
-                    "created_at": None,
-                    "updated_at": None,
-                },
-                "state_history": [],
-                "artifacts": [],
-                "delegations": [],
-            }
+            records = empty_task_records(task_id)
         else:
             records_response.raise_for_status()
-            records = records_response.json()
-        return {
-            **context_task,
-            "provenance": records["provenance"],
-            "state_history": records["state_history"],
-            "artifacts": records["artifacts"],
-            "delegations": records["delegations"],
-        }
+            records = TaskRecordsView.model_validate(records_response.json())
+        return merge_task_detail(context_task, records)
 
-    def patch_task_state(self, task_id: str, payload: dict) -> dict:
+    def patch_task_state(self, task_id: str, payload: dict) -> TaskDetailView:
         response = self._context_client.patch(
             f"/tasks/{task_id}/state",
             json=payload,
@@ -73,20 +56,20 @@ class InProcessMemoryServiceClient:
         dispatch_response.raise_for_status()
         return self.get_task(task_id)
 
-    def create_artifact(self, task_id: str, payload: dict) -> dict:
+    def create_artifact(self, task_id: str, payload: dict) -> ArtifactView:
         response = self._provenance_client.post(f"/tasks/{task_id}/artifacts", json=payload)
         response.raise_for_status()
-        return response.json()
+        return ArtifactView.model_validate(response.json())
 
-    def create_delegation(self, task_id: str, payload: dict) -> dict:
+    def create_delegation(self, task_id: str, payload: dict) -> DelegatedWorkView:
         response = self._provenance_client.post(f"/tasks/{task_id}/delegations", json=payload)
         response.raise_for_status()
-        return response.json()
+        return DelegatedWorkView.model_validate(response.json())
 
-    def update_delegation(self, delegation_id: str, payload: dict) -> dict:
+    def update_delegation(self, delegation_id: str, payload: dict) -> DelegatedWorkView:
         response = self._provenance_client.patch(f"/delegations/{delegation_id}", json=payload)
         response.raise_for_status()
-        return response.json()
+        return DelegatedWorkView.model_validate(response.json())
 
     def close(self) -> None:
         return None
@@ -165,20 +148,20 @@ class InProcessContextOutboxClient:
     def __init__(self, client: TestClient):
         self._client = client
 
-    def claim_events(self, *, limit: int, lease_seconds: int) -> list[dict]:
+    def claim_events(self, *, limit: int, lease_seconds: int) -> list:
         response = self._client.post("/outbox/claim", json={"limit": limit, "lease_seconds": lease_seconds})
         response.raise_for_status()
-        return response.json()["events"]
+        return [parse_task_lifecycle_outbox_event(item) for item in response.json()["events"]]
 
-    def complete_event(self, event_id: str) -> dict:
+    def complete_event(self, event_id: str):
         response = self._client.post(f"/outbox/{event_id}/complete")
         response.raise_for_status()
-        return response.json()
+        return parse_task_lifecycle_outbox_event(response.json())
 
-    def fail_event(self, event_id: str, *, error_message: str) -> dict:
+    def fail_event(self, event_id: str, *, error_message: str):
         response = self._client.post(f"/outbox/{event_id}/fail", json={"error_message": error_message})
         response.raise_for_status()
-        return response.json()
+        return parse_task_lifecycle_outbox_event(response.json())
 
     def close(self) -> None:
         return None
@@ -188,13 +171,19 @@ class InProcessProvenanceProjectionClient:
     def __init__(self, client: TestClient):
         self._client = client
 
-    def ensure_task_provenance(self, task_id: str, payload: dict) -> dict:
-        response = self._client.post(f"/tasks/{task_id}/provenance", json=payload)
+    def ensure_task_provenance(self, task_id: str, payload) -> dict:
+        response = self._client.post(f"/tasks/{task_id}/provenance", json=payload.model_dump(mode="json"))
         response.raise_for_status()
         return response.json()
 
-    def append_state_transition(self, task_id: str, payload: dict) -> dict:
-        response = self._client.post(f"/tasks/{task_id}/state-transitions", json=payload)
+    def append_state_transition(self, task_id: str, payload: TaskLifecycleTransition, *, source_event_id: str) -> dict:
+        response = self._client.post(
+            f"/tasks/{task_id}/state-transitions",
+            json={
+                **payload.model_dump(mode="json"),
+                "source_event_id": source_event_id,
+            },
+        )
         response.raise_for_status()
         return response.json()
 

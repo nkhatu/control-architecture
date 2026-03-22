@@ -3,6 +3,15 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 import httpx
+from shared_contracts.tasks import (
+    ArtifactView,
+    DelegatedWorkView,
+    TaskContextView,
+    TaskDetailView,
+    TaskRecordsView,
+    empty_task_records,
+    merge_task_detail,
+)
 
 
 class MemoryServiceError(RuntimeError):
@@ -12,22 +21,22 @@ class MemoryServiceError(RuntimeError):
 
 
 class MemoryServiceClient(Protocol):
-    def create_task(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def create_task(self, payload: dict[str, Any]) -> TaskDetailView:
         ...
 
-    def get_task(self, task_id: str) -> dict[str, Any]:
+    def get_task(self, task_id: str) -> TaskDetailView:
         ...
 
-    def patch_task_state(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def patch_task_state(self, task_id: str, payload: dict[str, Any]) -> TaskDetailView:
         ...
 
-    def create_artifact(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def create_artifact(self, task_id: str, payload: dict[str, Any]) -> ArtifactView:
         ...
 
-    def create_delegation(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def create_delegation(self, task_id: str, payload: dict[str, Any]) -> DelegatedWorkView:
         ...
 
-    def update_delegation(self, delegation_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def update_delegation(self, delegation_id: str, payload: dict[str, Any]) -> DelegatedWorkView:
         ...
 
     def close(self) -> None:
@@ -46,7 +55,7 @@ class MemoryServiceHttpClient:
         self._provenance_client = httpx.Client(base_url=provenance_base_url, timeout=timeout_seconds)
         self._event_consumer_client = httpx.Client(base_url=event_consumer_base_url, timeout=timeout_seconds)
 
-    def create_task(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def create_task(self, payload: dict[str, Any]) -> TaskDetailView:
         context_task = self._context_request(
             "post",
             "/tasks",
@@ -54,9 +63,9 @@ class MemoryServiceHttpClient:
             failure_message="Failed to create task in context-memory-service.",
         )
         self._dispatch_consistency()
-        return self.get_task(context_task["task_id"])
+        return self.get_task(context_task.task_id)
 
-    def get_task(self, task_id: str) -> dict[str, Any]:
+    def get_task(self, task_id: str) -> TaskDetailView:
         context_task = self._context_request(
             "get",
             f"/tasks/{task_id}",
@@ -67,9 +76,9 @@ class MemoryServiceHttpClient:
             f"/tasks/{task_id}/records",
             failure_message=f"Failed to load provenance for task {task_id}.",
         )
-        return self._merge_task_detail(context_task, records)
+        return merge_task_detail(context_task, records)
 
-    def patch_task_state(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def patch_task_state(self, task_id: str, payload: dict[str, Any]) -> TaskDetailView:
         self._context_request(
             "patch",
             f"/tasks/{task_id}/state",
@@ -79,29 +88,32 @@ class MemoryServiceHttpClient:
         self._dispatch_consistency()
         return self.get_task(task_id)
 
-    def create_artifact(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._provenance_request(
+    def create_artifact(self, task_id: str, payload: dict[str, Any]) -> ArtifactView:
+        response = self._provenance_request(
             "post",
             f"/tasks/{task_id}/artifacts",
             json=payload,
             failure_message=f"Failed to create artifact for task {task_id} in provenance-service.",
         )
+        return ArtifactView.model_validate(response)
 
-    def create_delegation(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._provenance_request(
+    def create_delegation(self, task_id: str, payload: dict[str, Any]) -> DelegatedWorkView:
+        response = self._provenance_request(
             "post",
             f"/tasks/{task_id}/delegations",
             json=payload,
             failure_message=f"Failed to create delegation for task {task_id} in provenance-service.",
         )
+        return DelegatedWorkView.model_validate(response)
 
-    def update_delegation(self, delegation_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._provenance_request(
+    def update_delegation(self, delegation_id: str, payload: dict[str, Any]) -> DelegatedWorkView:
+        response = self._provenance_request(
             "patch",
             f"/delegations/{delegation_id}",
             json=payload,
             failure_message=f"Failed to update delegation {delegation_id} in provenance-service.",
         )
+        return DelegatedWorkView.model_validate(response)
 
     def close(self) -> None:
         self._context_client.close()
@@ -115,7 +127,7 @@ class MemoryServiceHttpClient:
         *,
         json: dict[str, Any] | None = None,
         failure_message: str,
-    ) -> dict[str, Any]:
+    ) -> TaskContextView:
         try:
             response = self._context_client.request(method, path, json=json)
         except httpx.HTTPError as exc:
@@ -124,7 +136,7 @@ class MemoryServiceHttpClient:
         if response.is_error:
             raise MemoryServiceError(self._detail_from_response(response, failure_message), status_code=response.status_code)
 
-        return response.json()
+        return TaskContextView.model_validate(response.json())
 
     def _provenance_request(
         self,
@@ -151,41 +163,19 @@ class MemoryServiceHttpClient:
         *,
         json: dict[str, Any] | None = None,
         failure_message: str,
-    ) -> dict[str, Any]:
+    ) -> TaskRecordsView:
         try:
             response = self._provenance_client.request(method, path, json=json)
         except httpx.HTTPError as exc:
             raise MemoryServiceError(failure_message) from exc
 
         if response.status_code == 404:
-            return {
-                "provenance": {
-                    "task_id": path.split("/")[2],
-                    "initiated_by": "",
-                    "last_updated_by": "",
-                    "policy_context_id": None,
-                    "trace_id": None,
-                    "created_at": None,
-                    "updated_at": None,
-                },
-                "state_history": [],
-                "artifacts": [],
-                "delegations": [],
-            }
+            return empty_task_records(path.split("/")[2])
 
         if response.is_error:
             raise MemoryServiceError(self._detail_from_response(response, failure_message), status_code=response.status_code)
 
-        return response.json()
-
-    def _merge_task_detail(self, context_task: dict[str, Any], records: dict[str, Any]) -> dict[str, Any]:
-        return {
-            **context_task,
-            "provenance": records["provenance"],
-            "state_history": records["state_history"],
-            "artifacts": records["artifacts"],
-            "delegations": records["delegations"],
-        }
+        return TaskRecordsView.model_validate(response.json())
 
     def _dispatch_consistency(self) -> None:
         try:

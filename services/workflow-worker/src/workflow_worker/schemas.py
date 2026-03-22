@@ -4,6 +4,7 @@ from datetime import date
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+from shared_contracts.tasks import TaskDetailView
 
 
 Rail = Literal["ach", "same_day_ach", "internal_transfer", "rtp"]
@@ -55,7 +56,7 @@ class WorkflowProgress(BaseModel):
 
 
 class WorkflowExecutionResponse(BaseModel):
-    task: dict[str, Any]
+    task: TaskDetailView
     workflow: WorkflowProgress
     artifacts_created: list[str] = Field(default_factory=list)
     release_result: dict[str, Any] | None = None

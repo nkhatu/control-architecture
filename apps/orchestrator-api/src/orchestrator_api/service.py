@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 
+from shared_contracts.tasks import TaskDetailView
+
 from .memory_client import MemoryServiceClient, MemoryServiceError
 from .policy_client import PolicyServiceClient, PolicyServiceError
 from .registry import RegistrySnapshot
@@ -170,7 +172,7 @@ class OrchestrationService:
             release_result=workflow_result.get("release_result"),
         )
 
-    def get_task(self, task_id: str) -> dict[str, object]:
+    def get_task(self, task_id: str) -> TaskDetailView:
         try:
             return self.memory_client.get_task(task_id)
         except MemoryServiceError as exc:
@@ -204,7 +206,7 @@ class OrchestrationService:
 
     def _evaluate_release_policy(
         self,
-        task: dict[str, object],
+        task: TaskDetailView,
         payload: DomesticPaymentResumeRequest,
         idempotency_key: str,
     ) -> PolicyDecisionResponse:
@@ -212,14 +214,14 @@ class OrchestrationService:
             decision = self.policy_client.evaluate_release(
                 {
                     "payment": {
-                        "task_id": task["task_id"],
-                        "payment_id": task["payment_id"],
-                        "amount_usd": task["amount_usd"],
-                        "rail": task["rail"],
-                        "status": task["status"],
-                        "approval_status": task["approval_status"],
-                        "beneficiary_status": task["beneficiary_status"],
-                        "task_metadata": task.get("task_metadata", {}),
+                        "task_id": task.task_id,
+                        "payment_id": task.payment_id,
+                        "amount_usd": task.amount_usd,
+                        "rail": task.rail,
+                        "status": task.status,
+                        "approval_status": task.approval_status,
+                        "beneficiary_status": task.beneficiary_status,
+                        "task_metadata": task.task_metadata,
                     },
                     "principal": {
                         "actor_id": payload.approved_by,
@@ -232,7 +234,7 @@ class OrchestrationService:
                         "idempotency_key": idempotency_key,
                         "release_mode": payload.release_mode,
                     },
-                    "trace_id": task.get("provenance", {}).get("trace_id"),
+                    "trace_id": task.provenance.trace_id,
                 }
             )
         except PolicyServiceError as exc:

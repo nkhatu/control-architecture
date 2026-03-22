@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
+from shared_contracts.tasks import DelegatedWorkView, TaskDetailView
+
 from .capability_client import CapabilityGatewayClient, CapabilityGatewayError
 from .delegation import (
     APPROVAL_CAPABILITY_ID,
@@ -107,7 +109,7 @@ class WorkflowWorkerService:
             )
             validation_request_envelope = self._delegated_agent_router.build_request_envelope(
                 workflow_id=workflow_id,
-                task_id=task["task_id"],
+                task_id=task.task_id,
                 delegated_agent_id=COMPLIANCE_AGENT_ID,
                 delegated_action="beneficiary_validation",
                 scope=["payment.validate"],
@@ -116,18 +118,18 @@ class WorkflowWorkerService:
                 payload={
                     "delegated_action": "beneficiary_validation",
                     "capability_request": {
-                        "task_id": task["task_id"],
-                        "payment_id": task["payment_id"],
-                        "customer_id": task["customer_id"],
+                        "task_id": task.task_id,
+                        "payment_id": task.payment_id,
+                        "customer_id": task.customer_id,
                         "beneficiary_id": payload.request.beneficiary_id,
-                        "amount_usd": task["amount_usd"],
-                        "rail": task["rail"],
+                        "amount_usd": task.amount_usd,
+                        "rail": task.rail,
                         "trace_id": payload.request.trace_id,
                     },
                 },
             )
             validation_delegation = self._memory_client.create_delegation(
-                task["task_id"],
+                task.task_id,
                 {
                     "workflow_id": workflow_id,
                     "parent_agent_id": PARENT_AGENT_ID,
@@ -140,7 +142,7 @@ class WorkflowWorkerService:
             )
             validation_execution = self._delegated_agent_router.execute(validation_request_envelope)
             self._memory_client.update_delegation(
-                validation_delegation["delegation_id"],
+                validation_delegation.delegation_id,
                 {
                     "status": validation_execution.status,
                     "updated_by": COMPLIANCE_AGENT_ID,
@@ -149,7 +151,7 @@ class WorkflowWorkerService:
             )
             validation = validation_execution.payload["validation_result"]
             validation_artifact = self._memory_client.create_artifact(
-                task["task_id"],
+                task.task_id,
                 {
                     "artifact_type": "beneficiary_validation_result",
                     "content": validation,
@@ -167,7 +169,7 @@ class WorkflowWorkerService:
         try:
             if validation_status == "validated":
                 self._memory_client.patch_task_state(
-                    task["task_id"],
+                    task.task_id,
                     {
                         "status": "validated",
                         "changed_by": self._app_name,
@@ -178,7 +180,7 @@ class WorkflowWorkerService:
                 )
                 approval_request_envelope = self._delegated_agent_router.build_request_envelope(
                     workflow_id=workflow_id,
-                    task_id=task["task_id"],
+                    task_id=task.task_id,
                     delegated_agent_id=APPROVAL_ROUTER_AGENT_ID,
                     delegated_action="approval_routing",
                     scope=["payment.submit_for_approval"],
@@ -188,16 +190,16 @@ class WorkflowWorkerService:
                         "delegated_action": "approval_routing",
                         "approval_profile": payload.policy_decision.approval_profile,
                         "task_summary": {
-                            "task_id": task["task_id"],
-                            "payment_id": task["payment_id"],
-                            "customer_id": task["customer_id"],
-                            "amount_usd": task["amount_usd"],
-                            "rail": task["rail"],
+                            "task_id": task.task_id,
+                            "payment_id": task.payment_id,
+                            "customer_id": task.customer_id,
+                            "amount_usd": task.amount_usd,
+                            "rail": task.rail,
                         },
                     },
                 )
                 approval_delegation = self._memory_client.create_delegation(
-                    task["task_id"],
+                    task.task_id,
                     {
                         "workflow_id": workflow_id,
                         "parent_agent_id": PARENT_AGENT_ID,
@@ -210,7 +212,7 @@ class WorkflowWorkerService:
                 )
                 approval_execution = self._delegated_agent_router.execute(approval_request_envelope)
                 self._memory_client.update_delegation(
-                    approval_delegation["delegation_id"],
+                    approval_delegation.delegation_id,
                     {
                         "status": approval_execution.status,
                         "updated_by": APPROVAL_ROUTER_AGENT_ID,
@@ -218,7 +220,7 @@ class WorkflowWorkerService:
                     },
                 )
                 approval_artifact = self._memory_client.create_artifact(
-                    task["task_id"],
+                    task.task_id,
                     {
                         "artifact_type": "approval_request",
                         "content": approval_execution.payload,
@@ -226,7 +228,7 @@ class WorkflowWorkerService:
                     },
                 )
                 final_task = self._memory_client.patch_task_state(
-                    task["task_id"],
+                    task.task_id,
                     {
                         "status": "awaiting_approval",
                         "changed_by": self._app_name,
@@ -242,13 +244,13 @@ class WorkflowWorkerService:
                     last_capability=CAPABILITY_VALIDATE_BENEFICIARY,
                 )
                 artifacts_created = [
-                    validation_artifact["artifact_type"],
-                    approval_artifact["artifact_type"],
+                    validation_artifact.artifact_type,
+                    approval_artifact.artifact_type,
                 ]
             else:
                 blocked_status = "exception" if validation_status == "needs_review" else "failed"
                 final_task = self._memory_client.patch_task_state(
-                    task["task_id"],
+                    task.task_id,
                     {
                         "status": blocked_status,
                         "changed_by": self._app_name,
@@ -263,7 +265,7 @@ class WorkflowWorkerService:
                     next_action="manual_review",
                     last_capability=CAPABILITY_VALIDATE_BENEFICIARY,
                 )
-                artifacts_created = [validation_artifact["artifact_type"]]
+                artifacts_created = [validation_artifact.artifact_type]
         except MemoryServiceError as exc:
             raise WorkflowWorkerError(str(exc), status_code=exc.status_code, error_class="memory_error") from exc
 
@@ -283,14 +285,14 @@ class WorkflowWorkerService:
         except MemoryServiceError as exc:
             raise WorkflowWorkerError(str(exc), status_code=exc.status_code, error_class="memory_error") from exc
 
-        if task["status"] != "awaiting_approval":
+        if task.status != "awaiting_approval":
             raise WorkflowWorkerError(
                 f"Task {task_id} is not waiting for approval and cannot be resumed.",
                 status_code=409,
                 error_class="state_conflict",
             )
 
-        workflow_id = task["task_metadata"].get("workflow_id", self._workflow_id(task_id))
+        workflow_id = task.task_metadata.get("workflow_id", self._workflow_id(task_id))
         approval_reason = payload.approval_note or "Approval granted. Resume release workflow."
         approval_delegation = self._find_latest_delegation(task, delegated_action="approval_routing", status="pending")
         if approval_delegation is None:
@@ -301,7 +303,7 @@ class WorkflowWorkerService:
             )
 
         approval_request_id = (
-            approval_delegation.get("response_envelope", {})
+            (approval_delegation.response_envelope or {})
             .get("payload", {})
             .get("approval_request_id")
         )
@@ -314,13 +316,13 @@ class WorkflowWorkerService:
 
         try:
             approval_completion_envelope = self._delegated_agent_router.build_approval_completion_envelope(
-                request_envelope=approval_delegation["request_envelope"],
+                request_envelope=approval_delegation.request_envelope,
                 approval_request_id=approval_request_id,
                 approved_by=payload.approved_by,
                 approval_note=payload.approval_note,
             )
             self._memory_client.update_delegation(
-                approval_delegation["delegation_id"],
+                approval_delegation.delegation_id,
                 {
                     "status": "completed",
                     "updated_by": APPROVAL_ROUTER_AGENT_ID,
@@ -341,13 +343,13 @@ class WorkflowWorkerService:
                     "status": "approved",
                     "changed_by": payload.approved_by,
                     "reason": approval_reason,
-                    "beneficiary_status": task["beneficiary_status"],
+                    "beneficiary_status": task.beneficiary_status,
                     "approval_status": "approved",
                 },
             )
             release_result = self._capability_client.release_payment(
                 {
-                    "payment_id": task["payment_id"],
+                    "payment_id": task.payment_id,
                     "task_id": task_id,
                     "idempotency_key": payload.idempotency_key or self._default_idempotency_key(task_id),
                     "released_by": payload.approved_by,
@@ -379,7 +381,7 @@ class WorkflowWorkerService:
                         "status": "released",
                         "changed_by": self._app_name,
                         "reason": "Release request accepted by capability gateway.",
-                        "beneficiary_status": task["beneficiary_status"],
+                        "beneficiary_status": task.beneficiary_status,
                         "approval_status": "approved",
                     },
                 )
@@ -389,7 +391,7 @@ class WorkflowWorkerService:
                         "status": "settlement_pending",
                         "changed_by": self._app_name,
                         "reason": release_result["result"].get("explanation") or "Waiting for settlement confirmation.",
-                        "beneficiary_status": task["beneficiary_status"],
+                        "beneficiary_status": task.beneficiary_status,
                         "approval_status": "approved",
                     },
                 )
@@ -406,7 +408,7 @@ class WorkflowWorkerService:
                         "status": "pending_reconcile",
                         "changed_by": self._app_name,
                         "reason": release_result["result"].get("explanation") or "Release outcome was ambiguous.",
-                        "beneficiary_status": task["beneficiary_status"],
+                        "beneficiary_status": task.beneficiary_status,
                         "approval_status": "approved",
                     },
                 )
@@ -423,7 +425,7 @@ class WorkflowWorkerService:
                         "status": "failed",
                         "changed_by": self._app_name,
                         "reason": release_result["result"].get("explanation") or "Release request failed.",
-                        "beneficiary_status": task["beneficiary_status"],
+                        "beneficiary_status": task.beneficiary_status,
                         "approval_status": "approved",
                     },
                 )
@@ -439,7 +441,7 @@ class WorkflowWorkerService:
         return WorkflowExecutionResponse(
             task=final_task,
             workflow=workflow,
-            artifacts_created=[approval_artifact["artifact_type"], artifact["artifact_type"]],
+            artifacts_created=[approval_artifact.artifact_type, artifact.artifact_type],
             release_result=release_result,
         )
 
@@ -460,15 +462,15 @@ class WorkflowWorkerService:
 
     def _find_latest_delegation(
         self,
-        task: dict[str, Any],
+        task: TaskDetailView,
         *,
         delegated_action: str,
         status: str,
-    ) -> dict[str, Any] | None:
+    ) -> DelegatedWorkView | None:
         candidates = [
             delegation
-            for delegation in task.get("delegations", [])
-            if delegation.get("delegated_action") == delegated_action and delegation.get("status") == status
+            for delegation in task.delegations
+            if delegation.delegated_action == delegated_action and delegation.status == status
         ]
         if not candidates:
             return None

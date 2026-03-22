@@ -1,6 +1,7 @@
 from contextlib import ExitStack
 
 from fastapi.testclient import TestClient
+from shared_contracts.events import TaskLifecycleTransition, parse_task_lifecycle_outbox_event
 
 from context_memory_service.config import AppSettings as ContextMemorySettings
 from context_memory_service.main import create_app as create_context_memory_app
@@ -16,20 +17,20 @@ class InProcessContextOutboxClient:
     def __init__(self, client: TestClient):
         self._client = client
 
-    def claim_events(self, *, limit: int, lease_seconds: int) -> list[dict]:
+    def claim_events(self, *, limit: int, lease_seconds: int) -> list:
         response = self._client.post("/outbox/claim", json={"limit": limit, "lease_seconds": lease_seconds})
         response.raise_for_status()
-        return response.json()["events"]
+        return [parse_task_lifecycle_outbox_event(item) for item in response.json()["events"]]
 
-    def complete_event(self, event_id: str) -> dict:
+    def complete_event(self, event_id: str):
         response = self._client.post(f"/outbox/{event_id}/complete")
         response.raise_for_status()
-        return response.json()
+        return parse_task_lifecycle_outbox_event(response.json())
 
-    def fail_event(self, event_id: str, *, error_message: str) -> dict:
+    def fail_event(self, event_id: str, *, error_message: str):
         response = self._client.post(f"/outbox/{event_id}/fail", json={"error_message": error_message})
         response.raise_for_status()
-        return response.json()
+        return parse_task_lifecycle_outbox_event(response.json())
 
     def close(self) -> None:
         return None
@@ -39,13 +40,19 @@ class InProcessProvenanceClient:
     def __init__(self, client: TestClient):
         self._client = client
 
-    def ensure_task_provenance(self, task_id: str, payload: dict) -> dict:
-        response = self._client.post(f"/tasks/{task_id}/provenance", json=payload)
+    def ensure_task_provenance(self, task_id: str, payload) -> dict:
+        response = self._client.post(f"/tasks/{task_id}/provenance", json=payload.model_dump(mode="json"))
         response.raise_for_status()
         return response.json()
 
-    def append_state_transition(self, task_id: str, payload: dict) -> dict:
-        response = self._client.post(f"/tasks/{task_id}/state-transitions", json=payload)
+    def append_state_transition(self, task_id: str, payload: TaskLifecycleTransition, *, source_event_id: str) -> dict:
+        response = self._client.post(
+            f"/tasks/{task_id}/state-transitions",
+            json={
+                **payload.model_dump(mode="json"),
+                "source_event_id": source_event_id,
+            },
+        )
         response.raise_for_status()
         return response.json()
 

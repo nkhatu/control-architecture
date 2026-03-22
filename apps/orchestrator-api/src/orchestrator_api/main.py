@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, status
+from shared_contracts.tasks import TaskDetailView
 
 from .config import AppSettings, get_settings
 from .memory_client import MemoryServiceClient, MemoryServiceHttpClient
@@ -111,11 +112,11 @@ def create_app(
         except OrchestrationServiceError as exc:
             raise HTTPException(status_code=exc.status_code, detail={"message": str(exc), "error_class": exc.error_class}) from exc
 
-    @app.get("/tasks/{task_id}")
+    @app.get("/tasks/{task_id}", response_model=TaskDetailView)
     def get_task(
         task_id: str,
         service: OrchestrationService = Depends(get_service),
-    ) -> dict[str, object]:
+    ) -> TaskDetailView:
         try:
             return service.get_task(task_id)
         except OrchestrationServiceError as exc:

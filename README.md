@@ -47,6 +47,8 @@ services/
   workflow-worker/      Temporal workflows and activities
   event-consumer/       async event handlers and read model updates
 packages/
+  README.md             package-boundary guide for shared assets
+  shared-contracts/     typed shared event payloads and merged task/read-model contracts
   capability-schemas/   shared JSON schemas and protocol envelope
   policy-models/        role maps, thresholds, approval profiles
   security-middleware/  token validation, idempotency, audit helpers
@@ -74,6 +76,23 @@ docs/
 6. If allowed, `workflow-worker` drives validation, approval wait states, release, and ambiguous-response holds.
 7. `capability-gateway` talks to a mock rail and returns typed release outcomes.
 
+## Package Boundaries
+
+The `packages/` directory is for reusable assets that multiple services import, but which are not deployable services themselves.
+
+- `shared-contracts` contains Python runtime models used directly by backend code. Use it for typed internal event payloads and merged read models.
+- `capability-schemas` contains JSON Schema documents. Use it when the contract needs to be language-neutral, published, or validated outside Python.
+- `policy-models` contains versioned policy data such as thresholds, approval matrices, and scope maps.
+- `security-middleware` and `observability` are support packages for shared enforcement and telemetry conventions.
+
+Rule of thumb:
+
+- If the thing is a Python model imported by backend services, it belongs in `shared-contracts`.
+- If the thing is a schema document, it belongs in `capability-schemas`.
+- If the thing changes policy behavior through configuration rather than code, it belongs in `policy-models`.
+
+For more detail, see [packages/README.md](packages/README.md).
+
 ## Current Implemented Slice
 
 The PoC currently includes:
@@ -82,6 +101,7 @@ The PoC currently includes:
 - `provenance-service` as the append-only provenance and delegation boundary.
 - a transactional outbox in `context-memory-service` for task create and state-change events.
 - `event-consumer` as the projection service that reconciles context into provenance.
+- `shared-contracts` as the typed contract package for lifecycle events and merged task views.
 - `orchestrator-api` as both a REST intake API and an MCP server adapter.
 - `policy-service` as the deterministic decision boundary for intake and release checks.
 - `workflow-worker` as the service that advances validation, approval wait states, and release.

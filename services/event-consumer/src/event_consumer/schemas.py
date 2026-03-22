@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel, Field
+from shared_contracts.events import TaskLifecycleOutboxEvent
 
 
 class DispatchRequest(BaseModel):
@@ -21,13 +20,3 @@ class DispatchResponse(BaseModel):
     processed_count: int
     failed_count: int
     failures: list[DispatchFailure] = Field(default_factory=list)
-
-
-class OutboxEvent(BaseModel):
-    event_id: str
-    aggregate_type: str
-    aggregate_id: str
-    event_type: str
-    payload: dict[str, Any]
-    status: str
-    attempt_count: int

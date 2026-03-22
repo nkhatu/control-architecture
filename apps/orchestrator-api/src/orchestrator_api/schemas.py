@@ -4,6 +4,7 @@ from datetime import date
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+from shared_contracts.tasks import TaskDetailView
 
 
 Rail = Literal["ach", "same_day_ach", "internal_transfer", "rtp"]
@@ -45,7 +46,7 @@ class WorkflowProgressResponse(BaseModel):
 
 
 class DomesticPaymentIntakeResponse(BaseModel):
-    task: dict[str, Any]
+    task: TaskDetailView
     policy_decision: PolicyDecisionResponse
     available_capabilities: list[str]
     selected_agents: list[str]
@@ -61,6 +62,6 @@ class DomesticPaymentResumeRequest(BaseModel):
 
 
 class DomesticPaymentResumeResponse(BaseModel):
-    task: dict[str, Any]
+    task: TaskDetailView
     workflow: WorkflowProgressResponse
     release_result: dict[str, Any] | None = None

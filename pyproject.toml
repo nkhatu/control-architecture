@@ -29,6 +29,7 @@ dev = [
 
 [tool.setuptools]
 packages = [
+  "shared_contracts",
   "context_memory_service",
   "provenance_service",
   "event_consumer",
@@ -39,6 +40,7 @@ packages = [
 ]
 
 [tool.setuptools.package-dir]
+shared_contracts = "packages/shared-contracts/src/shared_contracts"
 context_memory_service = "services/context-memory-service/src/context_memory_service"
 provenance_service = "services/provenance-service/src/provenance_service"
 event_consumer = "services/event-consumer/src/event_consumer"
