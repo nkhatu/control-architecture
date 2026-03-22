@@ -81,4 +81,4 @@ The PoC currently includes:
 - `workflow-worker` as the service that advances validation, approval wait states, and release.
 - MCP tools, resources, and a review prompt exposed through the orchestrator for controlled task creation and retrieval.
 
-For service-level run commands and MCP details, see [apps/orchestrator-api/README.md](/Users/enkay/Documents/Scripts/Control%20Architecture/apps/orchestrator-api/README.md).
+For service-level run commands and MCP details, see [apps/orchestrator-api/README.md](apps/orchestrator-api/README.md).
