@@ -27,6 +27,10 @@ Full architecture document: [Protocol-Mediated Agentic Money Movement Control Pl
 
 Implementation addendum: [implementation-update-2026-03.md](docs/architecture/implementation-update-2026-03.md)
 
+Consolidated architecture v2: [control-platform-architecture-v2.md](docs/architecture/control-platform-architecture-v2.md)
+
+Word export: [control-platform-architecture-v2.docx](docs/architecture/control-platform-architecture-v2.docx)
+
 ### Protocol-Mediated Architecture
 
 ![Protocol-Mediated Architecture](docs/architecture/Protocol%20Mediated%20Architecture.jpg)
