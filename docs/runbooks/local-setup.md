@@ -77,6 +77,30 @@ uv run pytest
 
 For a manual stack walkthrough, see [end-to-end-test.md](./end-to-end-test.md).
 
+## One-Command Local Stack
+
+If you want the repo to bring up infra and launch the local services for you:
+
+```bash
+scripts/local-stack.sh up
+```
+
+Useful companion commands:
+
+```bash
+scripts/local-stack.sh status
+scripts/local-stack.sh logs orchestrator-api
+scripts/local-stack.sh down
+```
+
+Default behavior:
+
+- starts Docker infra with `make infra-up`
+- starts the backend services in the recommended order
+- starts `ops-console`
+- uses SQLite for `context-memory-service` and `provenance-service` unless you override it
+- writes logs and pid files under `.local-stack/`
+
 ## Frontend Bootstrap
 
 From the repo root:
